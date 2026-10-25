@@ -24,4 +24,14 @@
     <string name="bgsubs_pref_server" translatable="false">Адрес на сървъра</string>
     <string name="bgsubs_pref_token" translatable="false">Токен</string>
     <string name="bgsubs_token_not_set" translatable="false">Не е зададен</string>
+    <string name="bgsubs_update_title" translatable="false">Провери за обновление</string>
+    <string name="bgsubs_update_installed" translatable="false">Версия %s</string>
+    <string name="bgsubs_update_checking" translatable="false">Проверка за нова версия…</string>
+    <string name="bgsubs_update_latest" translatable="false">Имаш последната версия (%s).</string>
+    <string name="bgsubs_update_available" translatable="false">Има нова версия %1$s (%2$s MB). Да се обнови ли?</string>
+    <string name="bgsubs_update_install" translatable="false">Обнови</string>
+    <string name="bgsubs_update_downloading" translatable="false">Сваляне… %d%%</string>
+    <string name="bgsubs_update_allow" translatable="false">Разреши на Just Player BG да инсталира приложения, после натисни „Провери за обновление“ отново.</string>
+    <string name="bgsubs_update_allow_manual" translatable="false">Настройки → Приложения → Специален достъп → Инсталиране на неизвестни приложения → Just Player BG</string>
+    <string name="bgsubs_update_failed" translatable="false">Обновяването не успя: %s</string>
 </resources>

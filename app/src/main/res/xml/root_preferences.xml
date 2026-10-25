@@ -110,6 +110,10 @@
             app:key="bgsubs_token"
             app:title="@string/bgsubs_pref_token" />
 
+        <com.brouken.player.BgSubsUpdatePreference
+            app:key="bgsubs_update"
+            app:title="@string/bgsubs_update_title" />
+
     </PreferenceCategory>
 
 </PreferenceScreen>
