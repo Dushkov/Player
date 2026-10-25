@@ -1,0 +1,55 @@
+name: Just Player BG release
+
+on:
+  push:
+    branches: [bgsubs]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+          cache: gradle
+      - name: Version from upstream build.gradle
+        run: |
+          UP=$(grep -oP 'versionCode \K\d+' app/build.gradle | head -1)
+          echo "UP=$UP" >> "$GITHUB_ENV"
+          echo "VERSION_CODE=$((UP * 1000 + GITHUB_RUN_NUMBER))" >> "$GITHUB_ENV"
+          echo "VERSION_NAME=0.$UP-bg.$GITHUB_RUN_NUMBER" >> "$GITHUB_ENV"
+      - name: Keystore
+        run: echo "${{ secrets.BGSUBS_KEYSTORE_B64 }}" | base64 --decode > "$RUNNER_TEMP/bgsubs.jks"
+      - name: Test and build
+        run: |
+          chmod +x gradlew
+          ./gradlew testLatestUniversalReleaseUnitTest assembleLatestUniversalRelease \
+            -Pandroid.injected.version.code=$VERSION_CODE \
+            -Pandroid.injected.version.name=$VERSION_NAME \
+            -Pandroid.injected.signing.store.file="$RUNNER_TEMP/bgsubs.jks" \
+            -Pandroid.injected.signing.store.password="${{ secrets.BGSUBS_KEYSTORE_PASSWORD }}" \
+            -Pandroid.injected.signing.key.alias=bgsubs \
+            -Pandroid.injected.signing.key.password="${{ secrets.BGSUBS_KEY_PASSWORD }}"
+      - name: Test report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: unit-test-report
+          path: app/build/test-results/
+      - name: Collect APK
+        run: cp app/build/outputs/apk/latestUniversal/release/*.apk JustPlayerBG.apk
+      - uses: softprops/action-gh-release@v2
+        with:
+          tag_name: bg-v0.${{ env.UP }}.${{ github.run_number }}
+          name: Just Player BG ${{ env.VERSION_NAME }}
+          target_commitish: ${{ github.sha }}
+          make_latest: true
+          files: JustPlayerBG.apk
