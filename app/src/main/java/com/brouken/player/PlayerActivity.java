@@ -158,6 +158,8 @@ public class PlayerActivity extends Activity {
     private CoordinatorLayout coordinatorLayout;
     private TextView titleView;
     private ImageButton buttonOpen;
+    private ImageButton buttonBgSubs;
+    private BgSubsDialog bgSubsDialog;
     private ImageButton buttonPiP;
     private ImageButton buttonAspectRatio;
     private ImageButton buttonRotation;
@@ -392,6 +394,13 @@ public class PlayerActivity extends Activity {
             return true;
         });
 
+        bgSubsDialog = new BgSubsDialog(this);
+        buttonBgSubs = new ImageButton(this, null, 0, R.style.ExoStyledControls_Button_Bottom);
+        buttonBgSubs.setImageResource(R.drawable.ic_bgsubs_24dp);
+        buttonBgSubs.setId(View.generateViewId());
+        buttonBgSubs.setContentDescription(getString(R.string.bgsubs_button));
+        buttonBgSubs.setOnClickListener(view -> bgSubsDialog.show());
+
         if (Utils.isPiPSupported(this)) {
             // TODO: Android 12 improvements:
             // https://developer.android.com/about/versions/12/features/pip-improvements
@@ -619,6 +628,7 @@ public class PlayerActivity extends Activity {
 
         controls.addView(buttonOpen);
         controls.addView(exoSubtitle);
+        controls.addView(buttonBgSubs);
         controls.addView(buttonAspectRatio);
         if (Utils.isPiPSupported(this) && buttonPiP != null) {
             controls.addView(buttonPiP);
@@ -1069,6 +1079,9 @@ public class PlayerActivity extends Activity {
         apiAccessPartial = false;
         apiTitle = null;
         apiSubs.clear();
+        if (bgSubsDialog != null) {
+            bgSubsDialog.reset();
+        }
         mPrefs.setPersistent(true);
     }
 

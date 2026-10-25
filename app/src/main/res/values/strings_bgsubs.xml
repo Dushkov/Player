@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="bgsubs_button" translatable="false">BG субтитри</string>
+    <string name="bgsubs_search_title" translatable="false">BG субтитри</string>
+    <string name="bgsubs_search_hint" translatable="false">Заглавие на английски (напр. Inception 2010)</string>
+    <string name="bgsubs_search" translatable="false">Търси</string>
+    <string name="bgsubs_new_search" translatable="false">Ново търсене</string>
+    <string name="bgsubs_searching" translatable="false">Търсене…</string>
+    <string name="bgsubs_loading" translatable="false">Зареждане…</string>
+    <string name="bgsubs_enter_title" translatable="false">Въведи заглавие</string>
+    <string name="bgsubs_results_title" translatable="false">Резултати</string>
+    <string name="bgsubs_results_count" translatable="false">Резултати (%d)</string>
+    <string name="bgsubs_no_results" translatable="false">Няма резултати за „%s“. Опитай с английското заглавие.</string>
+    <string name="bgsubs_errors" translatable="false">Грешки: %s</string>
+    <string name="bgsubs_files_title" translatable="false">Избери файл</string>
+    <string name="bgsubs_loaded" translatable="false">Заредени: %s</string>
+    <string name="bgsubs_settings" translatable="false">Настройки</string>
+    <string name="bgsubs_error_no_token" translatable="false">Въведи токен в Настройки → BG субтитри.</string>
+    <string name="bgsubs_error_unauthorized" translatable="false">Грешен токен. Провери го в Настройки → BG субтитри.</string>
+    <string name="bgsubs_error_network" translatable="false">Сървърът не отговаря.</string>
+    <string name="bgsubs_error_server" translatable="false">Грешка: %s</string>
+    <string name="bgsubs_pref_header" translatable="false">BG субтитри</string>
+    <string name="bgsubs_pref_server" translatable="false">Адрес на сървъра</string>
+    <string name="bgsubs_pref_token" translatable="false">Токен</string>
+    <string name="bgsubs_token_not_set" translatable="false">Не е зададен</string>
+</resources>

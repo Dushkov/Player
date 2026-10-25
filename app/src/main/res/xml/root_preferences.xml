@@ -98,4 +98,18 @@
 
     </PreferenceCategory>
 
+    <PreferenceCategory app:title="@string/bgsubs_pref_header">
+
+        <EditTextPreference
+            app:key="bgsubs_server"
+            app:defaultValue="https://subs.dushkov.eu"
+            app:title="@string/bgsubs_pref_server"
+            app:useSimpleSummaryProvider="true" />
+
+        <com.brouken.player.BgSubsTokenPreference
+            app:key="bgsubs_token"
+            app:title="@string/bgsubs_pref_token" />
+
+    </PreferenceCategory>
+
 </PreferenceScreen>
