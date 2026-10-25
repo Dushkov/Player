@@ -74,10 +74,34 @@ public class BgSubsClientTest {
     }
 
     @Test
-    public void labelSkipsMissingParts() throws Exception {
+    public void primaryLineIsReleaseOrTitle() throws Exception {
         BgSubsClient.SearchResponse r = BgSubsClient.parseSearch(SEARCH_JSON);
-        assertEquals("unacs · Inception.RERiP.DVDRiP.XviD-ARROW · 23.976 · 12474↓", r.results.get(0).label());
-        assertEquals("subdl · Inception", r.results.get(1).label());
+        assertEquals("Inception.RERiP.DVDRiP.XviD-ARROW", r.results.get(0).primaryLine());
+        assertEquals("Inception", r.results.get(1).primaryLine());
+    }
+
+    @Test
+    public void metaLineHasReadableSourceAndSkipsMissingParts() throws Exception {
+        BgSubsClient.SearchResponse r = BgSubsClient.parseSearch(SEARCH_JSON);
+        assertEquals("subsunacs · 23.976 fps · 12\u00A0474 изтегляния · 2 файла · 14.11.2010", r.results.get(0).metaLine());
+        assertEquals("SubDL", r.results.get(1).metaLine());
+    }
+
+    @Test
+    public void sourceNamesAreReadable() {
+        assertEquals("sab.bz", BgSubsClient.sourceName("sabbz"));
+        assertEquals("subsunacs", BgSubsClient.sourceName("unacs"));
+        assertEquals("SubDL", BgSubsClient.sourceName("subdl"));
+        assertEquals("OpenSubtitles", BgSubsClient.sourceName("opensubtitles"));
+        assertEquals("SubSource", BgSubsClient.sourceName("subsource"));
+        assertEquals("newsite", BgSubsClient.sourceName("newsite"));
+    }
+
+    @Test
+    public void singleFileAndOneDownloadWording() throws Exception {
+        BgSubsClient.Result r = BgSubsClient.parseSearch("{\"results\":[{\"id\":\"a\",\"source\":\"sabbz\",\"title\":\"X\","
+                + "\"downloads\":1,\"files_hint\":1}],\"errors\":[]}").results.get(0);
+        assertEquals("sab.bz · 1 изтегляне", r.metaLine());
     }
 
     @Test

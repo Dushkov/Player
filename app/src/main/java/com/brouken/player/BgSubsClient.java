@@ -214,9 +214,21 @@ final class BgSubsClient {
         return s;
     }
 
+    static String sourceName(String source) {
+        throw new UnsupportedOperationException();
+    }
+
     static final class Result {
         String id, source, title, release, fps, date;
         Integer year, downloads, filesHint;
+
+        String primaryLine() {
+            throw new UnsupportedOperationException();
+        }
+
+        String metaLine() {
+            throw new UnsupportedOperationException();
+        }
 
         String label() {
             StringBuilder sb = new StringBuilder(source == null ? "?" : source);
