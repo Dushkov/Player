@@ -31,7 +31,7 @@ jobs:
       - name: Test and build
         run: |
           chmod +x gradlew
-          ./gradlew testLatestUniversalReleaseUnitTest assembleLatestUniversalRelease \
+          ./gradlew testLatestUniversalDebugUnitTest assembleLatestUniversalRelease \
             -Pandroid.injected.version.code=$VERSION_CODE \
             -Pandroid.injected.version.name=$VERSION_NAME \
             -Pandroid.injected.signing.store.file="$RUNNER_TEMP/bgsubs.jks" \
