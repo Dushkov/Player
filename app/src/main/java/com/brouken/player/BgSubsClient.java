@@ -1,8 +1,11 @@
 package com.brouken.player;
 
 import java.io.IOException;
+import java.text.DecimalFormat;
+import java.text.DecimalFormatSymbols;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import java.util.concurrent.TimeUnit;
 
 import okhttp3.Call;
@@ -214,29 +217,44 @@ final class BgSubsClient {
         return s;
     }
 
+    /** Name shown to the viewer for a server-side source id. */
     static String sourceName(String source) {
-        throw new UnsupportedOperationException();
+        if (source == null) return "?";
+        switch (source) {
+            case "sabbz": return "sab.bz";
+            case "unacs": return "subsunacs";
+            case "subdl": return "SubDL";
+            case "opensubtitles": return "OpenSubtitles";
+            case "subsource": return "SubSource";
+            default: return source;
+        }
+    }
+
+    private static String groupThousands(int n) {
+        DecimalFormatSymbols symbols = new DecimalFormatSymbols(Locale.ROOT);
+        symbols.setGroupingSeparator('\u00A0');  // no-break space, as in Bulgarian "12 474"
+        return new DecimalFormat("#,##0", symbols).format(n);
     }
 
     static final class Result {
         String id, source, title, release, fps, date;
         Integer year, downloads, filesHint;
 
+        /** First row: the release name, or the title when the source has none. */
         String primaryLine() {
-            throw new UnsupportedOperationException();
+            if (release != null && !release.isEmpty()) return release;
+            return title != null ? title : "?";
         }
 
+        /** Second row: source · fps · downloads · files · date, skipping what the source does not give. */
         String metaLine() {
-            throw new UnsupportedOperationException();
-        }
-
-        String label() {
-            StringBuilder sb = new StringBuilder(source == null ? "?" : source);
-            String name = release != null ? release : title;
-            if (name != null) sb.append(" · ").append(name);
-            if (fps != null) sb.append(" · ").append(fps);
-            if (downloads != null) sb.append(" · ").append(downloads).append('↓');
-            return sb.toString();
+            List<String> parts = new ArrayList<>();
+            parts.add(sourceName(source));
+            if (fps != null) parts.add(fps + " fps");
+            if (downloads != null) parts.add(groupThousands(downloads) + (downloads == 1 ? " изтегляне" : " изтегляния"));
+            if (filesHint != null && filesHint > 1) parts.add(filesHint + " файла");
+            if (date != null) parts.add(date);
+            return String.join(" · ", parts);
         }
     }
 

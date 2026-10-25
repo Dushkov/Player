@@ -3,8 +3,14 @@ package com.brouken.player;
 import android.app.AlertDialog;
 import android.content.Intent;
 import android.content.SharedPreferences;
+import android.graphics.Typeface;
 import android.net.Uri;
 import android.text.InputType;
+import android.text.SpannableStringBuilder;
+import android.text.Spanned;
+import android.text.style.ForegroundColorSpan;
+import android.text.style.RelativeSizeSpan;
+import android.text.style.StyleSpan;
 import android.util.TypedValue;
 import android.view.Gravity;
 import android.view.inputmethod.EditorInfo;
@@ -144,16 +150,16 @@ final class BgSubsDialog {
                     .show();
             return;
         }
-        List<String> labels = new ArrayList<>();
+        List<CharSequence> labels = new ArrayList<>();
         for (BgSubsClient.Result r : response.results) {
-            labels.add(r.label());
+            labels.add(twoLineLabel(r));
         }
         if (!response.errors.isEmpty()) {
             labels.add(activity.getString(R.string.bgsubs_errors, join(response.errors)));
         }
         new AlertDialog.Builder(activity)
                 .setTitle(activity.getString(R.string.bgsubs_results_count, response.results.size()))
-                .setItems(labels.toArray(new String[0]), (d, which) -> {
+                .setItems(labels.toArray(new CharSequence[0]), (d, which) -> {
                     if (which < response.results.size()) {
                         pickFile(response.results.get(which));
                     } else {
@@ -163,6 +169,32 @@ final class BgSubsDialog {
                 .setNeutralButton(R.string.bgsubs_new_search, (d, w) -> showSearch(lastInput))
                 .setNegativeButton(android.R.string.cancel, null)
                 .show();
+    }
+
+    /** Release on the first row; smaller grey second row starting with the source name in its own colour. */
+    private static CharSequence twoLineLabel(BgSubsClient.Result r) {
+        SpannableStringBuilder sb = new SpannableStringBuilder(r.primaryLine());
+        int metaStart = sb.length() + 1;
+        sb.append('\n').append(r.metaLine());
+        int end = sb.length();
+        sb.setSpan(new RelativeSizeSpan(0.8f), metaStart, end, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+        sb.setSpan(new ForegroundColorSpan(0xFF9E9E9E), metaStart, end, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+        int nameEnd = metaStart + BgSubsClient.sourceName(r.source).length();
+        sb.setSpan(new ForegroundColorSpan(sourceColor(r.source)), metaStart, nameEnd, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+        sb.setSpan(new StyleSpan(Typeface.BOLD), metaStart, nameEnd, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+        return sb;
+    }
+
+    private static int sourceColor(String source) {
+        if (source == null) return 0xFF9E9E9E;
+        switch (source) {
+            case "sabbz": return 0xFF4FC3F7;          // light blue
+            case "unacs": return 0xFF81C784;          // green
+            case "subdl": return 0xFFFFB74D;          // orange
+            case "opensubtitles": return 0xFFE57373;  // red
+            case "subsource": return 0xFFBA68C8;      // purple
+            default: return 0xFF9E9E9E;
+        }
     }
 
     private void pickFile(BgSubsClient.Result result) {
