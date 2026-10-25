@@ -1,40 +1,185 @@
 package com.brouken.player;
 
+import java.io.IOException;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 
+import okhttp3.Call;
 import okhttp3.HttpUrl;
 import okhttp3.OkHttpClient;
+import okhttp3.Request;
+import okhttp3.Response;
+import okhttp3.ResponseBody;
 
+import org.json.JSONArray;
 import org.json.JSONException;
+import org.json.JSONObject;
 
-/** HTTP client for the bgsubs server (/search, /files, /download). */
+/** HTTP client for the bgsubs server (/search, /files, /download). Blocking: call it off the UI thread. */
 final class BgSubsClient {
 
+    private static final int MAX_SUBTITLE_BYTES = 2_000_000;
+
+    private final String server;
+    private final String token;
+    private final OkHttpClient http;
+    private volatile Call currentCall;
+
     BgSubsClient(String server, String token, OkHttpClient http) {
+        this.server = stripTrailingSlash(server == null ? "" : server.trim());
+        this.token = token == null ? "" : token.trim();
+        this.http = http.newBuilder().callTimeout(30, TimeUnit.SECONDS).build();
     }
 
     SearchResponse search(BgSubsQuery query) throws BgSubsException {
-        throw new UnsupportedOperationException();
+        SearchResponse response = parse(get(searchUrl(server, query)));
+        if (query.year != null && response.results.isEmpty() && response.errors.isEmpty()) {
+            // "Blade Runner 2049" was read as year 2049; try the whole title without a year
+            BgSubsQuery fallback = query.withoutYear(query.title + " " + query.year);
+            response = parse(get(searchUrl(server, fallback)));
+        }
+        return response;
     }
 
     List<FileEntry> files(String id) throws BgSubsException {
-        throw new UnsupportedOperationException();
+        HttpUrl url = base().newBuilder().addPathSegment("files").addPathSegment(id).build();
+        try {
+            return parseFiles(new String(get(url), "UTF-8"));
+        } catch (JSONException | IOException e) {
+            throw new BgSubsException(BgSubsException.Kind.SERVER, "invalid server response");
+        }
     }
 
     byte[] download(String id, int n) throws BgSubsException {
-        throw new UnsupportedOperationException();
+        HttpUrl url = base().newBuilder().addPathSegment("download").addPathSegment(id)
+                .addPathSegment(String.valueOf(n)).build();
+        return get(url);
+    }
+
+    /** Aborts the request in progress, if any; the blocked call then fails with NETWORK. */
+    void cancel() {
+        Call call = currentCall;
+        if (call != null) {
+            call.cancel();
+        }
     }
 
     static HttpUrl searchUrl(String server, BgSubsQuery query) {
-        throw new UnsupportedOperationException();
+        HttpUrl.Builder b = HttpUrl.get(stripTrailingSlash(server) + "/search").newBuilder()
+                .addQueryParameter("q", query.title);
+        if (query.year != null) b.addQueryParameter("year", String.valueOf(query.year));
+        if (query.season != null) b.addQueryParameter("season", String.valueOf(query.season));
+        if (query.episode != null) b.addQueryParameter("episode", String.valueOf(query.episode));
+        return b.build();
     }
 
     static SearchResponse parseSearch(String json) throws JSONException {
-        throw new UnsupportedOperationException();
+        JSONObject root = new JSONObject(json);
+        SearchResponse response = new SearchResponse();
+        JSONArray results = root.optJSONArray("results");
+        for (int i = 0; results != null && i < results.length(); i++) {
+            JSONObject o = results.getJSONObject(i);
+            Result r = new Result();
+            r.id = o.getString("id");
+            r.source = string(o, "source");
+            r.title = string(o, "title");
+            r.release = string(o, "release");
+            r.fps = string(o, "fps");
+            r.date = string(o, "date");
+            r.year = integer(o, "year");
+            r.downloads = integer(o, "downloads");
+            r.filesHint = integer(o, "files_hint");
+            response.results.add(r);
+        }
+        JSONArray errors = root.optJSONArray("errors");
+        for (int i = 0; errors != null && i < errors.length(); i++) {
+            JSONObject o = errors.getJSONObject(i);
+            response.errors.add(string(o, "source") + " (" + string(o, "message") + ")");
+        }
+        return response;
     }
 
     static List<FileEntry> parseFiles(String json) throws JSONException {
-        throw new UnsupportedOperationException();
+        JSONArray files = new JSONObject(json).getJSONArray("files");
+        List<FileEntry> entries = new ArrayList<>();
+        for (int i = 0; i < files.length(); i++) {
+            JSONObject o = files.getJSONObject(i);
+            FileEntry e = new FileEntry();
+            e.n = o.getInt("n");
+            e.name = o.getString("name");
+            entries.add(e);
+        }
+        return entries;
+    }
+
+    private SearchResponse parse(byte[] body) throws BgSubsException {
+        try {
+            return parseSearch(new String(body, "UTF-8"));
+        } catch (JSONException | IOException e) {
+            throw new BgSubsException(BgSubsException.Kind.SERVER, "invalid server response");
+        }
+    }
+
+    private HttpUrl base() throws BgSubsException {
+        checkConfigured();
+        HttpUrl url = HttpUrl.parse(server);
+        if (url == null) {
+            throw new BgSubsException(BgSubsException.Kind.NO_TOKEN, "invalid server address");
+        }
+        return url;
+    }
+
+    private void checkConfigured() throws BgSubsException {
+        if (token.isEmpty() || server.isEmpty()) {
+            throw new BgSubsException(BgSubsException.Kind.NO_TOKEN, "server or token not set");
+        }
+    }
+
+    private byte[] get(HttpUrl url) throws BgSubsException {
+        checkConfigured();
+        Request request = new Request.Builder().url(url).header("X-Api-Key", token).build();
+        Call call = http.newCall(request);
+        currentCall = call;
+        try (Response response = call.execute()) {
+            ResponseBody body = response.body();
+            int code = response.code();
+            if (code == 200) {
+                if (body.contentLength() > MAX_SUBTITLE_BYTES) {
+                    throw new BgSubsException(BgSubsException.Kind.SERVER, "response too large");
+                }
+                return body.bytes();
+            }
+            String detail = detail(body.string(), "HTTP " + code);
+            if (code == 401) throw new BgSubsException(BgSubsException.Kind.UNAUTHORIZED, detail);
+            if (code == 422) throw new BgSubsException(BgSubsException.Kind.UNPROCESSABLE, detail);
+            throw new BgSubsException(BgSubsException.Kind.SERVER, detail);
+        } catch (IOException e) {
+            throw new BgSubsException(BgSubsException.Kind.NETWORK, e.getMessage() == null ? "network error" : e.getMessage());
+        } finally {
+            currentCall = null;
+        }
+    }
+
+    private static String detail(String body, String fallback) {
+        try {
+            Object detail = new JSONObject(body).opt("detail");
+            return detail instanceof String ? (String) detail : fallback;
+        } catch (JSONException e) {
+            return fallback;
+        }
+    }
+
+    private static String string(JSONObject o, String key) {
+        return o.isNull(key) ? null : o.optString(key, null);
+    }
+
+    private static Integer integer(JSONObject o, String key) {
+        return o.isNull(key) ? null : o.optInt(key);
+    }
+
+    private static String stripTrailingSlash(String s) {
+        return s.endsWith("/") ? s.substring(0, s.length() - 1) : s;
     }
 
     static final class Result {
@@ -42,13 +187,18 @@ final class BgSubsClient {
         Integer year, downloads, filesHint;
 
         String label() {
-            throw new UnsupportedOperationException();
+            StringBuilder sb = new StringBuilder(source == null ? "?" : source);
+            String name = release != null ? release : title;
+            if (name != null) sb.append(" · ").append(name);
+            if (fps != null) sb.append(" · ").append(fps);
+            if (downloads != null) sb.append(" · ").append(downloads).append('↓');
+            return sb.toString();
         }
     }
 
     static final class SearchResponse {
-        List<Result> results;
-        List<String> errors;
+        final List<Result> results = new ArrayList<>();
+        final List<String> errors = new ArrayList<>();
     }
 
     static final class FileEntry {
