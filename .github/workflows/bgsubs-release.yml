@@ -32,8 +32,8 @@ jobs:
         run: |
           chmod +x gradlew
           ./gradlew testLatestUniversalDebugUnitTest assembleLatestUniversalRelease \
-            -Pandroid.injected.version.code=$VERSION_CODE \
-            -Pandroid.injected.version.name=$VERSION_NAME \
+            -PbgVersionCode=$VERSION_CODE \
+            -PbgVersionName=$VERSION_NAME \
             -Pandroid.injected.signing.store.file="$RUNNER_TEMP/bgsubs.jks" \
             -Pandroid.injected.signing.store.password="${{ secrets.BGSUBS_KEYSTORE_PASSWORD }}" \
             -Pandroid.injected.signing.key.alias=bgsubs \

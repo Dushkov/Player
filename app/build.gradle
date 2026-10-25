@@ -123,3 +123,15 @@ dependencies {
     implementation project(path: ':android-file-chooser')
     implementation fileTree(dir: "libs", include: ["lib-*.aar"])
 }
+// Just Player BG: CI sets the version without touching upstream's versionCode line (keeps rebases clean)
+androidComponents {
+    onVariants(selector().all()) { variant ->
+        def bgVersionCode = project.findProperty("bgVersionCode")
+        if (bgVersionCode) {
+            variant.outputs.each { output ->
+                output.versionCode.set(bgVersionCode.toInteger())
+                output.versionName.set(project.findProperty("bgVersionName").toString())
+            }
+        }
+    }
+}
