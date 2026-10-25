@@ -1,7 +1,12 @@
 package com.brouken.player;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThrows;
+
+import java.lang.reflect.Field;
+import java.lang.reflect.Modifier;
+import java.util.regex.Pattern;
 
 import org.junit.Test;
 
@@ -86,5 +91,28 @@ public class BgSubsQueryTest {
     @Test
     public void onlyReleaseWordsRejected() {
         assertThrows(IllegalArgumentException.class, () -> BgSubsQuery.parse("720p.x264"));
+    }
+
+    // Android's regex engine (ICU) rejects the (?U) / (?u) inline flags that the JVM accepts,
+    // so a pattern using them crashes the app on the TV while every JVM unit test passes.
+    @Test
+    public void patternsAvoidFlagsUnsupportedOnAndroid() throws Exception {
+        int checked = 0;
+        for (Field f : BgSubsQuery.class.getDeclaredFields()) {
+            if (f.getType() == Pattern.class && Modifier.isStatic(f.getModifiers())) {
+                f.setAccessible(true);
+                Pattern p = (Pattern) f.get(null);
+                assertFalse(f.getName() + " uses an inline U/u flag", p.pattern().matches("(?s)^\\(\\?[a-zA-Z]*[Uu].*"));
+                assertFalse(f.getName() + " uses UNICODE_* flags",
+                        (p.flags() & (Pattern.UNICODE_CHARACTER_CLASS | Pattern.UNICODE_CASE)) != 0);
+                checked++;
+            }
+        }
+        assertFalse("no patterns found", checked == 0);
+    }
+
+    @Test
+    public void capitalizedBulgarianSeasonWord() {
+        assertQuery("Игра на тронове СЕЗОН 3", "Игра на тронове", null, 3, null);
     }
 }
