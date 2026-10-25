@@ -27,7 +27,7 @@ final class BgSubsClient {
     private volatile Call currentCall;
 
     BgSubsClient(String server, String token, OkHttpClient http) {
-        this.server = normalizeServer(server);
+        this.server = server == null ? "" : server.trim();  // normalized only in serverUrl(); doing it twice turns "http://" into host "http"
         this.token = token == null ? "" : token.trim();
         this.http = http.newBuilder().callTimeout(30, TimeUnit.SECONDS).build();
     }
