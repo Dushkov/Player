@@ -1,0 +1,53 @@
+# Just Player BG
+
+Just Player с бутон **„BG“** за търсене на български субтитри по време на гледане. Субтитрите идват от моя сървър [bgsubs](https://subs.dushkov.eu/docs) (sab.bz, subsunacs.net, SubDL).
+
+Промените спрямо оригинала са в клона `bgsubs`: `BgSubsQuery`, `BgSubsClient`, `BgSubsDialog`, `BgSubsTokenPreference`, около 13 реда в `PlayerActivity`, настройките и `app_name`/`applicationId`. Клонът `master` е непроменено копие на [moneytoo/Player](https://github.com/moneytoo/Player).
+
+## Инсталиране на Google TV
+
+1. В приложението **Downloader** отвори:
+   `https://github.com/Dushkov/Player/releases/latest/download/JustPlayerBG.apk`
+2. **Install**. При първия път Android ще поиска разрешение Downloader да инсталира приложения.
+3. Отвори **Just Player BG** → ⚙ (Настройки) → **BG субтитри** → **Токен**. Въведи `API_TOKEN` от `/opt/bgsubs/.env` на VPS-а. Най-лесно е с клавиатурата на приложението **Google TV** на телефона, където можеш да поставиш токена с copy-paste.
+4. **TiviMate** → Настройки → Плейър → Външен плейър → **Just Player BG**.
+
+Оригиналният Just Player може да остане инсталиран: това е отделно приложение (`com.brouken.player.bgsubs`).
+
+## Ползване
+
+По време на филма натисни OK, за да се покажат контролите → бутонът с лупа (до бутона за субтитри) → провери заглавието → **Търси** → избери резултат.
+
+- Търсенето е **по английско заглавие**. Година и епизод се пишат в същото поле: `Inception 2010`, `Breaking Bad S01E02`.
+- Второ натискане на бутона показва последния списък, за да пробваш друг резултат.
+- Закъснението на субтитрите се настройва както в оригиналния плейър.
+
+## Обновяване
+
+Свали отново от същия адрес в Downloader и инсталирай върху старата версия. Настройките и токенът остават.
+
+## Нова версия на Just Player (upstream)
+
+GitHub → Actions → **Sync with upstream Just Player** → **Run workflow**. Workflow-ът пренася нашите промени върху новата версия и изгражда ново APK.
+
+- При конфликт спира, без да пипа нищо, и GitHub изпраща имейл.
+- Ако upstream е променил свои файлове в `.github/workflows`, GitHub може да откаже push-а от workflow-а.
+
+И в двата случая синхронизирането се прави ръчно, локално: `git fetch upstream && git rebase upstream/master` в клона `bgsubs`, после `git push origin upstream/master:master` и `git push --force-with-lease origin bgsubs`.
+
+## Ключ за подписване
+
+APK-то е подписано с ключ в `~/bgsubs-signing/` на Mac-а (`bgsubs.jks` + `PASSWORD.txt`), копиран като GitHub secrets (`BGSUBS_KEYSTORE_B64`, `BGSUBS_KEYSTORE_PASSWORD`, `BGSUBS_KEY_PASSWORD`).
+
+**Пази копие на тази папка** (password manager или backup). Без ключа нова версия не може да се инсталира върху старата: ще трябва деинсталиране и токенът ще се въвежда наново.
+
+## Проверка на телевизора (чеклист)
+
+1. Инсталиране през Downloader и отваряне на приложението.
+2. Въвеждане на токена; в резюмето трябва да се вижда `••••` + последните 4 знака.
+3. TiviMate → live канал → Just Player BG се отваря. Бутонът с лупа е в контролите.
+4. Диалогът показва ред `TiviMate: title="…", uri=…`. Запиши какво пише там.
+5. Catch-up филм → търсене → избор → субтитрите се появяват, филмът **не** започва отначало.
+6. Второ натискане → списъкът излиза веднага → друг резултат се зарежда.
+7. Резултат с два файла (CD1/CD2) → излиза списък с файлове.
+8. Грешен токен в настройките → съобщение „Грешен токен“.

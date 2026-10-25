@@ -1,0 +1,38 @@
+name: Sync with upstream Just Player
+
+# Manual: Actions → "Sync with upstream Just Player" → Run workflow.
+# Fast-forwards master to moneytoo/Player, rebases bgsubs on it and starts a new release build.
+# On a rebase conflict it stops without pushing anything.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  actions: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: bgsubs
+          fetch-depth: 0
+      - name: Rebase bgsubs on upstream master
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git remote add upstream https://github.com/moneytoo/Player.git
+          git fetch upstream master
+          if ! git rebase upstream/master; then
+            git rebase --abort
+            echo "::error::Rebase conflict with upstream. Nothing was pushed; resolve it locally."
+            exit 1
+          fi
+          git push origin upstream/master:master
+          git push --force-with-lease origin HEAD:bgsubs
+      - name: Start release build
+        env:
+          GH_TOKEN: ${{ github.token }}
+        # pushes made with GITHUB_TOKEN do not trigger workflows, so start it explicitly
+        run: gh workflow run bgsubs-release.yml --ref bgsubs -R "$GITHUB_REPOSITORY"
