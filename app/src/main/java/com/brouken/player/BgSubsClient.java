@@ -194,10 +194,11 @@ final class BgSubsClient {
     /** Trims, drops trailing slashes and assumes https:// when no scheme was typed ("subs.dushkov.eu"). */
     private static String normalizeServer(String server) {
         String s = server == null ? "" : server.trim();
+        boolean hasScheme = s.contains("://");  // checked before stripping, or "http://" would become host "http"
         while (s.endsWith("/")) {
             s = s.substring(0, s.length() - 1);
         }
-        if (!s.isEmpty() && !s.contains("://")) {
+        if (!s.isEmpty() && !hasScheme) {
             s = "https://" + s;
         }
         return s;
