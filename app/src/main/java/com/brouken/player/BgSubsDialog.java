@@ -250,6 +250,11 @@ final class BgSubsDialog {
                 post(gen, progress, () -> done.accept(value));
             } catch (BgSubsClient.BgSubsException e) {
                 post(gen, progress, () -> showError(e, afterError));
+            } catch (RuntimeException e) {
+                // never let an unexpected error kill the player mid-film
+                BgSubsClient.BgSubsException wrapped = new BgSubsClient.BgSubsException(
+                        BgSubsClient.BgSubsException.Kind.SERVER, String.valueOf(e.getMessage()));
+                post(gen, progress, () -> showError(wrapped, afterError));
             }
         });
     }
@@ -271,6 +276,12 @@ final class BgSubsDialog {
         switch (e.kind) {
             case NO_TOKEN:
                 builder.setMessage(R.string.bgsubs_error_no_token)
+                        .setPositiveButton(R.string.bgsubs_settings,
+                                (d, w) -> activity.startActivity(new Intent(activity, SettingsActivity.class)))
+                        .setNegativeButton(android.R.string.cancel, null);
+                break;
+            case BAD_SERVER:
+                builder.setMessage(R.string.bgsubs_error_bad_server)
                         .setPositiveButton(R.string.bgsubs_settings,
                                 (d, w) -> activity.startActivity(new Intent(activity, SettingsActivity.class)))
                         .setNegativeButton(android.R.string.cancel, null);

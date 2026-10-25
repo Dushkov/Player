@@ -17,6 +17,7 @@
     <string name="bgsubs_settings" translatable="false">Настройки</string>
     <string name="bgsubs_error_no_token" translatable="false">Въведи токен в Настройки → BG субтитри.</string>
     <string name="bgsubs_error_unauthorized" translatable="false">Грешен токен. Провери го в Настройки → BG субтитри.</string>
+    <string name="bgsubs_error_bad_server" translatable="false">Невалиден адрес на сървъра. Провери го в Настройки → BG субтитри.</string>
     <string name="bgsubs_error_network" translatable="false">Сървърът не отговаря.</string>
     <string name="bgsubs_error_server" translatable="false">Грешка: %s</string>
     <string name="bgsubs_pref_header" translatable="false">BG субтитри</string>

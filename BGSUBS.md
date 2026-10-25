@@ -31,7 +31,7 @@ Just Player с бутон **„BG“** за търсене на българск
 GitHub → Actions → **Sync with upstream Just Player** → **Run workflow**. Workflow-ът пренася нашите промени върху новата версия и изгражда ново APK.
 
 - При конфликт спира, без да пипа нищо, и GitHub изпраща имейл.
-- Ако upstream е променил свои файлове в `.github/workflows`, GitHub може да откаже push-а от workflow-а.
+- GitHub може да откаже push-а, защото вграденият токен на workflow-а (`GITHUB_TOKEN`) няма право да създава или променя файлове в `.github/workflows`, а при rebase нашите workflow файлове се записват наново. Ще разберем при първата истинска нова версия на upstream. Ако се случи, решенията са две: fine-grained token с права `contents` и `workflows`, записан като secret, или ръчно синхронизиране, описано по-долу.
 
 И в двата случая синхронизирането се прави ръчно, локално: `git fetch upstream && git rebase upstream/master` в клона `bgsubs`, после `git push origin upstream/master:master` и `git push --force-with-lease origin bgsubs`.
 

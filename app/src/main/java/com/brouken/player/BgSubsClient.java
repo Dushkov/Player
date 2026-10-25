@@ -27,17 +27,18 @@ final class BgSubsClient {
     private volatile Call currentCall;
 
     BgSubsClient(String server, String token, OkHttpClient http) {
-        this.server = stripTrailingSlash(server == null ? "" : server.trim());
+        this.server = normalizeServer(server);
         this.token = token == null ? "" : token.trim();
         this.http = http.newBuilder().callTimeout(30, TimeUnit.SECONDS).build();
     }
 
     SearchResponse search(BgSubsQuery query) throws BgSubsException {
-        SearchResponse response = parse(get(searchUrl(server, query)));
+        checkConfigured();
+        SearchResponse response = parse(get(checkedSearchUrl(query)));
         if (query.year != null && response.results.isEmpty() && response.errors.isEmpty()) {
             // "Blade Runner 2049" was read as year 2049; try the whole title without a year
             BgSubsQuery fallback = query.withoutYear(query.title + " " + query.year);
-            response = parse(get(searchUrl(server, fallback)));
+            response = parse(get(checkedSearchUrl(fallback)));
         }
         return response;
     }
@@ -65,9 +66,13 @@ final class BgSubsClient {
         }
     }
 
+    /** The /search URL, or null when the server address is not a valid http(s) URL. */
     static HttpUrl searchUrl(String server, BgSubsQuery query) {
-        HttpUrl.Builder b = HttpUrl.get(stripTrailingSlash(server) + "/search").newBuilder()
-                .addQueryParameter("q", query.title);
+        HttpUrl url = HttpUrl.parse(normalizeServer(server) + "/search");
+        if (url == null) {
+            return null;
+        }
+        HttpUrl.Builder b = url.newBuilder().addQueryParameter("q", query.title);
         if (query.year != null) b.addQueryParameter("year", String.valueOf(query.year));
         if (query.season != null) b.addQueryParameter("season", String.valueOf(query.season));
         if (query.episode != null) b.addQueryParameter("episode", String.valueOf(query.episode));
@@ -125,7 +130,15 @@ final class BgSubsClient {
         checkConfigured();
         HttpUrl url = HttpUrl.parse(server);
         if (url == null) {
-            throw new BgSubsException(BgSubsException.Kind.NO_TOKEN, "invalid server address");
+            throw new BgSubsException(BgSubsException.Kind.BAD_SERVER, "invalid server address");
+        }
+        return url;
+    }
+
+    private HttpUrl checkedSearchUrl(BgSubsQuery query) throws BgSubsException {
+        HttpUrl url = searchUrl(server, query);
+        if (url == null) {
+            throw new BgSubsException(BgSubsException.Kind.BAD_SERVER, "invalid server address");
         }
         return url;
     }
@@ -178,8 +191,16 @@ final class BgSubsClient {
         return o.isNull(key) ? null : o.optInt(key);
     }
 
-    private static String stripTrailingSlash(String s) {
-        return s.endsWith("/") ? s.substring(0, s.length() - 1) : s;
+    /** Trims, drops trailing slashes and assumes https:// when no scheme was typed ("subs.dushkov.eu"). */
+    private static String normalizeServer(String server) {
+        String s = server == null ? "" : server.trim();
+        while (s.endsWith("/")) {
+            s = s.substring(0, s.length() - 1);
+        }
+        if (!s.isEmpty() && !s.contains("://")) {
+            s = "https://" + s;
+        }
+        return s;
     }
 
     static final class Result {
@@ -207,7 +228,7 @@ final class BgSubsClient {
     }
 
     static final class BgSubsException extends Exception {
-        enum Kind { NO_TOKEN, UNAUTHORIZED, NETWORK, SERVER, UNPROCESSABLE }
+        enum Kind { NO_TOKEN, BAD_SERVER, UNAUTHORIZED, NETWORK, SERVER, UNPROCESSABLE }
 
         final Kind kind;
 

@@ -817,6 +817,8 @@ public class PlayerActivity extends Activity {
                 } else {
                     mPrefs.updateMedia(this, uri, type);
                     searchSubtitles();
+                    apiTitle = intent.getStringExtra(API_TITLE);
+                    bgSubsDialog.reset();
                 }
                 focusPlay = true;
                 initializePlayer();
@@ -2230,6 +2232,7 @@ public class PlayerActivity extends Activity {
             releasePlayer();
             mPrefs.updateMedia(this, nextUri, null);
             searchSubtitles();
+            bgSubsDialog.reset();
             initializePlayer();
         }
     }
