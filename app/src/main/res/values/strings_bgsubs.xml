@@ -24,6 +24,8 @@
     <string name="bgsubs_pref_server" translatable="false">Адрес на сървъра</string>
     <string name="bgsubs_pref_token" translatable="false">Токен</string>
     <string name="bgsubs_token_not_set" translatable="false">Не е зададен</string>
+    <string name="bgsubs_sources_title" translatable="false">Източници на субтитри</string>
+    <string name="bgsubs_sources_summary" translatable="false">subs.sab.bz · subsunacs.net · SubDL (търсене по английско заглавие)</string>
     <string name="bgsubs_update_title" translatable="false">Провери за обновление</string>
     <string name="bgsubs_update_installed" translatable="false">Версия %s</string>
     <string name="bgsubs_update_checking" translatable="false">Проверка за нова версия…</string>

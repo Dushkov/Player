@@ -110,6 +110,13 @@
             app:key="bgsubs_token"
             app:title="@string/bgsubs_pref_token" />
 
+        <Preference
+            app:key="bgsubs_sources"
+            app:title="@string/bgsubs_sources_title"
+            app:summary="@string/bgsubs_sources_summary"
+            app:selectable="false"
+            app:persistent="false" />
+
         <com.brouken.player.BgSubsUpdatePreference
             app:key="bgsubs_update"
             app:title="@string/bgsubs_update_title" />
