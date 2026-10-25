@@ -68,11 +68,11 @@ final class BgSubsClient {
 
     /** The /search URL, or null when the server address is not a valid http(s) URL. */
     static HttpUrl searchUrl(String server, BgSubsQuery query) {
-        HttpUrl url = HttpUrl.parse(normalizeServer(server) + "/search");
-        if (url == null) {
+        HttpUrl base = serverUrl(server);
+        if (base == null) {
             return null;
         }
-        HttpUrl.Builder b = url.newBuilder().addQueryParameter("q", query.title);
+        HttpUrl.Builder b = base.newBuilder().addPathSegment("search").addQueryParameter("q", query.title);
         if (query.year != null) b.addQueryParameter("year", String.valueOf(query.year));
         if (query.season != null) b.addQueryParameter("season", String.valueOf(query.season));
         if (query.episode != null) b.addQueryParameter("episode", String.valueOf(query.episode));
@@ -128,7 +128,7 @@ final class BgSubsClient {
 
     private HttpUrl base() throws BgSubsException {
         checkConfigured();
-        HttpUrl url = HttpUrl.parse(server);
+        HttpUrl url = serverUrl(server);
         if (url == null) {
             throw new BgSubsException(BgSubsException.Kind.BAD_SERVER, "invalid server address");
         }
@@ -189,6 +189,16 @@ final class BgSubsClient {
 
     private static Integer integer(JSONObject o, String key) {
         return o.isNull(key) ? null : o.optInt(key);
+    }
+
+    /**
+     * Parses the server address; null if it is not a usable http(s) URL. Parsed as a whole (not with "/search"
+     * appended as text), because OkHttp reads "http:/search" leniently as host "search".
+     */
+    private static HttpUrl serverUrl(String server) {
+        String s = normalizeServer(server);
+        HttpUrl url = s.isEmpty() ? null : HttpUrl.parse(s);
+        return url == null || url.host().isEmpty() ? null : url;
     }
 
     /** Trims, drops trailing slashes and assumes https:// when no scheme was typed ("subs.dushkov.eu"). */
