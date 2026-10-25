@@ -6,12 +6,16 @@ import java.util.regex.Pattern;
 /** Splits a free-text title such as "Breaking Bad S01E02" or "Inception 2010" into search fields. */
 final class BgSubsQuery {
 
+    // No (?U)/(?u) flags and no \b: Android's ICU regex rejects those flags (crash), and without them \b is
+    // ASCII-only on the JVM. Explicit letter/digit lookarounds behave the same on both, Cyrillic included.
+    private static final String START = "(?<![\\p{L}\\p{N}])";
+    private static final String END = "(?![\\p{L}\\p{N}])";
     private static final Pattern EPISODE = Pattern.compile(
-            "(?iU)\\b(?:s(\\d{1,2})\\s?e(\\d{1,3})|(\\d{1,2})x(\\d{1,3}))\\b");
+            "(?i)" + START + "(?:s(\\d{1,2})\\s?e(\\d{1,3})|(\\d{1,2})x(\\d{1,3}))" + END);
     private static final Pattern SEASON = Pattern.compile(
-            "(?iU)\\b(?:s(\\d{1,2})|season\\s*(\\d{1,2})|сезон\\s*(\\d{1,2}))\\b");
+            "(?i)" + START + "(?:s(\\d{1,2})|season\\s*(\\d{1,2})|[Сс][Ее][Зз][Оо][Нн]\\s*(\\d{1,2}))" + END);
     private static final Pattern RELEASE_WORD = Pattern.compile(
-            "(?iU)\\b(?:480p|720p|1080p|2160p|web-?dl|webrip|hdtv|bluray|bdrip|dvdrip|x264|x265|hevc)\\b");
+            "(?i)" + START + "(?:480p|720p|1080p|2160p|web-?dl|webrip|hdtv|bluray|bdrip|dvdrip|x264|x265|hevc)" + END);
     private static final Pattern YEAR = Pattern.compile("^\\(?((?:19|20)\\d\\d)\\)?$");
 
     final String title;
