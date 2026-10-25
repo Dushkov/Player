@@ -195,4 +195,22 @@ public class BgSubsClientTest {
         assertTrue(r.results.isEmpty());
         assertFalse(r.errors.iterator().hasNext());
     }
+
+    @Test
+    public void serverWithoutSchemeDefaultsToHttps() {
+        assertEquals("https://subs.dushkov.eu/search?q=Inception",
+                BgSubsClient.searchUrl("subs.dushkov.eu", BgSubsQuery.parse("Inception")).toString());
+    }
+
+    @Test
+    public void invalidServerIsAnErrorNotACrash() throws Exception {
+        for (String server : new String[]{"http://", "https://exa mple.com", "::"}) {
+            try {
+                new BgSubsClient(server, "tok", http).search(BgSubsQuery.parse("Inception"));
+                fail("expected BAD_SERVER for " + server);
+            } catch (BgSubsClient.BgSubsException e) {
+                assertEquals(server, BgSubsClient.BgSubsException.Kind.BAD_SERVER, e.kind);
+            }
+        }
+    }
 }
