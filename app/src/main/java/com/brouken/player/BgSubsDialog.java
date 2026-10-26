@@ -3,18 +3,18 @@ package com.brouken.player;
 import android.app.AlertDialog;
 import android.content.Intent;
 import android.content.SharedPreferences;
+import android.content.res.ColorStateList;
 import android.graphics.Typeface;
+import android.graphics.drawable.ColorDrawable;
 import android.net.Uri;
 import android.text.InputType;
-import android.text.SpannableStringBuilder;
-import android.text.Spanned;
-import android.text.style.ForegroundColorSpan;
-import android.text.style.RelativeSizeSpan;
-import android.text.style.StyleSpan;
 import android.util.TypedValue;
 import android.view.Gravity;
+import android.view.View;
+import android.view.ViewGroup;
 import android.view.inputmethod.EditorInfo;
 import android.view.WindowManager;
+import android.widget.BaseAdapter;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.LinearLayout;
@@ -197,50 +197,110 @@ final class BgSubsDialog {
                     .show();
             return;
         }
-        List<CharSequence> labels = new ArrayList<>();
-        for (BgSubsClient.Result r : response.results) {
-            labels.add(twoLineLabel(r));
-        }
-        if (!response.errors.isEmpty()) {
-            labels.add(activity.getString(R.string.bgsubs_errors, join(response.errors)));
-        }
-        builder()
-                .setTitle(activity.getString(R.string.bgsubs_results_count, response.results.size()))
-                .setItems(labels.toArray(new CharSequence[0]), (d, which) -> {
+        final AlertDialog dialog = builder()
+                .setTitle(activity.getString(R.string.bgsubs_results_count, response.results.size()) + " · " + describe(lastQuery))
+                .setAdapter(new ResultsAdapter(response), (d, which) -> {
                     if (which < response.results.size()) {
                         pickFile(response.results.get(which));
-                    } else {
-                        showResults();  // the error line is not selectable
                     }
                 })
                 .setNeutralButton(R.string.bgsubs_new_search, (d, w) -> showSearch(lastQuery))
                 .setNegativeButton(android.R.string.cancel, null)
-                .show();
+                .create();
+        dialog.setOnShowListener(d -> {
+            // strong blue marker for the row under the D-pad focus; row texts turn white on it
+            dialog.getListView().setSelector(new ColorDrawable(SELECTED_ROW));
+            dialog.getListView().setDrawSelectorOnTop(false);
+        });
+        dialog.show();
     }
 
-    /** Release on the first row; smaller grey second row starting with the source name in its own colour. */
-    private static CharSequence twoLineLabel(BgSubsClient.Result r) {
-        SpannableStringBuilder sb = new SpannableStringBuilder(r.primaryLine());
-        int metaStart = sb.length() + 1;
-        sb.append('\n').append(r.metaLine());
-        int end = sb.length();
-        sb.setSpan(new RelativeSizeSpan(0.8f), metaStart, end, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
-        sb.setSpan(new ForegroundColorSpan(0xFF9E9E9E), metaStart, end, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
-        int nameEnd = metaStart + BgSubsClient.sourceName(r.source).length();
-        sb.setSpan(new ForegroundColorSpan(sourceColor(r.source)), metaStart, nameEnd, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
-        sb.setSpan(new StyleSpan(Typeface.BOLD), metaStart, nameEnd, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
-        return sb;
+    private static final int SELECTED_ROW = 0xFF1565C0;
+    private static final int PRIMARY_TEXT = 0xFFFFFFFF;
+    private static final int DETAIL_TEXT = 0xFFC0C0C0;
+
+    /** Two rows per result: release, then source (own colour) and details; the error line is not selectable. */
+    private final class ResultsAdapter extends BaseAdapter {
+        private final BgSubsClient.SearchResponse response;
+
+        ResultsAdapter(BgSubsClient.SearchResponse response) {
+            this.response = response;
+        }
+
+        @Override
+        public int getCount() {
+            return response.results.size() + (response.errors.isEmpty() ? 0 : 1);
+        }
+
+        @Override
+        public Object getItem(int position) {
+            return position < response.results.size() ? response.results.get(position) : null;
+        }
+
+        @Override
+        public long getItemId(int position) {
+            return position;
+        }
+
+        @Override
+        public boolean areAllItemsEnabled() {
+            return response.errors.isEmpty();
+        }
+
+        @Override
+        public boolean isEnabled(int position) {
+            return position < response.results.size();
+        }
+
+        @Override
+        public View getView(int position, View convertView, ViewGroup parent) {
+            LinearLayout row = new LinearLayout(activity);
+            row.setOrientation(LinearLayout.VERTICAL);
+            row.setPadding(dp(24), dp(10), dp(24), dp(10));
+            if (position >= response.results.size()) {
+                TextView errors = text(activity.getString(R.string.bgsubs_errors, join(response.errors)), 13, DETAIL_TEXT, false);
+                row.addView(errors);
+                return row;
+            }
+            BgSubsClient.Result r = response.results.get(position);
+            row.addView(text(r.primaryLine(), 16, PRIMARY_TEXT, false));
+            LinearLayout meta = new LinearLayout(activity);
+            meta.setOrientation(LinearLayout.HORIZONTAL);
+            meta.setDuplicateParentStateEnabled(true);
+            meta.addView(text(BgSubsClient.sourceName(r.source), 13, sourceColor(r.source), true));
+            String details = r.detailLine();
+            if (!details.isEmpty()) {
+                meta.addView(text("  ·  " + details, 13, DETAIL_TEXT, false));
+            }
+            row.addView(meta);
+            return row;
+        }
+
+        /** Text that turns white when its row is the selected one. */
+        private TextView text(String value, int sp, int color, boolean bold) {
+            TextView t = new TextView(activity);
+            t.setText(value);
+            t.setTextSize(TypedValue.COMPLEX_UNIT_SP, sp);
+            t.setTextColor(new ColorStateList(
+                    new int[][]{{android.R.attr.state_selected}, {android.R.attr.state_pressed}, {}},
+                    new int[]{PRIMARY_TEXT, PRIMARY_TEXT, color}));
+            if (bold) {
+                t.setTypeface(Typeface.DEFAULT_BOLD);
+            }
+            t.setDuplicateParentStateEnabled(true);
+            return t;
+        }
     }
 
     private static int sourceColor(String source) {
-        if (source == null) return 0xFF9E9E9E;
+        if (source == null) return DETAIL_TEXT;
         switch (source) {
-            case "sabbz": return 0xFF4FC3F7;          // light blue
-            case "unacs": return 0xFF81C784;          // green
-            case "subdl": return 0xFFFFB74D;          // orange
-            case "opensubtitles": return 0xFFE57373;  // red
-            case "subsource": return 0xFFBA68C8;      // purple
-            default: return 0xFF9E9E9E;
+            case "sabbz": return 0xFF81D4FA;          // light blue
+            case "unacs": return 0xFFA5D6A7;          // green
+            case "subdl": return 0xFFFFCC80;          // orange
+            case "opensubtitles": return 0xFFEF9A9A;  // red
+            case "subsource": return 0xFFCE93D8;      // purple
+            default: return DETAIL_TEXT;
         }
     }
 
