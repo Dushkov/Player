@@ -1,5 +1,6 @@
 package com.brouken.player;
 
+import java.util.Locale;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -67,16 +68,38 @@ final class BgSubsQuery {
         return new BgSubsQuery(title, year, season, episode);
     }
 
+    /** Query from the search form fields; empty fields are "not set". */
     static BgSubsQuery fromFields(String title, String season, String episode, String year) {
-        throw new UnsupportedOperationException();
+        String t = title == null ? "" : title.trim().replaceAll("\\s+", " ");
+        if (t.isEmpty()) {
+            throw new IllegalArgumentException("empty title");
+        }
+        return new BgSubsQuery(t, number(year), number(season), number(episode));
     }
 
+    /** Key for remembering a corrected series/film name: case and punctuation do not matter. */
     static String aliasKey(String title) {
-        throw new UnsupportedOperationException();
+        return title == null ? "" : title.toLowerCase(Locale.ROOT).replaceAll("[^\\p{L}\\p{N}]+", " ").trim();
     }
 
     static String fieldText(Integer value) {
-        throw new UnsupportedOperationException();
+        return value == null ? "" : value.toString();
+    }
+
+    private static Integer number(String text) {
+        String t = text == null ? "" : text.trim();
+        if (t.isEmpty()) {
+            return null;
+        }
+        try {
+            int n = Integer.parseInt(t);
+            if (n < 0) {
+                throw new IllegalArgumentException("negative number " + t);
+            }
+            return n;
+        } catch (NumberFormatException e) {
+            throw new IllegalArgumentException("not a number: " + t);
+        }
     }
 
     /** The same search with the whole typed title (a number like "2049" stays in it) and no year. */
