@@ -1,10 +1,11 @@
 package com.brouken.player;
 
+import java.io.ByteArrayOutputStream;
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.Iterator;
@@ -121,11 +122,22 @@ final class BgSubsLibrary {
 
     private JSONObject readIndex() {
         try {
-            return indexFile.isFile()
-                    ? new JSONObject(new String(Files.readAllBytes(indexFile.toPath()), StandardCharsets.UTF_8))
-                    : new JSONObject();
+            return indexFile.isFile() ? new JSONObject(readText(indexFile)) : new JSONObject();
         } catch (IOException | JSONException e) {
             return new JSONObject();  // a broken index only forgets saved subtitles
+        }
+    }
+
+    // plain streams, not the NIO Files API: that needs API 26 and minSdk is 24
+    private static String readText(File file) throws IOException {
+        try (FileInputStream in = new FileInputStream(file)) {
+            ByteArrayOutputStream out = new ByteArrayOutputStream();
+            byte[] buffer = new byte[8192];
+            int n;
+            while ((n = in.read(buffer)) != -1) {
+                out.write(buffer, 0, n);
+            }
+            return new String(out.toByteArray(), StandardCharsets.UTF_8);
         }
     }
 

@@ -144,6 +144,9 @@ final class BgSubsDialog {
             forget.setText(R.string.bgsubs_saved_forget);
             forget.setOnClickListener(v -> {
                 library.forget(key);
+                if (Uri.fromFile(saved.file).equals(activity.mPrefs.subtitleUri)) {
+                    activity.mPrefs.updateSubtitle(null);  // keeps playing; just don't point at the deleted file
+                }
                 savedRow.setVisibility(View.GONE);
                 toast(activity.getString(R.string.bgsubs_saved_forgotten));
             });

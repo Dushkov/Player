@@ -1,5 +1,8 @@
 package com.brouken.player;
 
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.util.Locale;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -82,8 +85,37 @@ final class BgSubsQuery {
         return title == null ? "" : title.toLowerCase(Locale.ROOT).replaceAll("[^\\p{L}\\p{N}]+", " ").trim();
     }
 
+    /**
+     * Identifies the film/episode for saved subtitles: "black doves s01e02", "inception 2010". A title without
+     * episode or year ("Новини" from catch-up) is too vague on its own, so a fingerprint of the stream address is
+     * added (VOD addresses are stable, catch-up ones contain the time). Null when there is nothing precise.
+     */
     static String libraryKey(BgSubsQuery q, String stream) {
-        throw new UnsupportedOperationException();
+        String key = aliasKey(q.title);
+        if (q.season != null && q.episode != null) {
+            return key + String.format(Locale.ROOT, " s%02de%02d", q.season, q.episode);
+        }
+        if (q.season == null && q.year != null) {
+            return key + " " + q.year;
+        }
+        if (stream == null || stream.isEmpty() || "null".equals(stream)) {
+            return null;
+        }
+        String season = q.season != null ? String.format(Locale.ROOT, " s%02d", q.season) : "";
+        return key + season + " #" + sha1(stream).substring(0, 12);  // hash only: the URL may hold credentials
+    }
+
+    private static String sha1(String text) {
+        try {
+            byte[] digest = MessageDigest.getInstance("SHA-1").digest(text.getBytes(StandardCharsets.UTF_8));
+            StringBuilder hex = new StringBuilder();
+            for (byte b : digest) {
+                hex.append(String.format(Locale.ROOT, "%02x", b));
+            }
+            return hex.toString();
+        } catch (NoSuchAlgorithmException e) {
+            throw new IllegalStateException(e);
+        }
     }
 
     static String fieldText(Integer value) {
