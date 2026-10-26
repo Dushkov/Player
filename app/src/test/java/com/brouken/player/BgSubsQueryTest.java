@@ -2,7 +2,9 @@ package com.brouken.player;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertThrows;
+import static org.junit.Assert.assertTrue;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
@@ -159,10 +161,25 @@ public class BgSubsQueryTest {
     }
 
     @Test
-    public void libraryKeyIdentifiesTheVideo() {
-        assertEquals("black doves s01e02", BgSubsQuery.libraryKey(BgSubsQuery.parse("Black Doves - S01E02 - A Little Black Dove")));
-        assertEquals("inception 2010", BgSubsQuery.libraryKey(BgSubsQuery.parse("Inception (2010)")));
-        assertEquals("inception", BgSubsQuery.libraryKey(BgSubsQuery.parse("Inception")));
-        assertEquals("breaking bad s03", BgSubsQuery.libraryKey(BgSubsQuery.parse("Breaking Bad Season 3")));
+    public void libraryKeyIsTitleAndEpisodeOrYearWhenPrecise() {
+        String stream = "http://host/series/user/pass/2322001.mp4";
+        assertEquals("black doves s01e02", BgSubsQuery.libraryKey(BgSubsQuery.parse("Black Doves - S01E02 - A Little Black Dove"), stream));
+        assertEquals("inception 2010", BgSubsQuery.libraryKey(BgSubsQuery.parse("Inception (2010)"), stream));
+    }
+
+    @Test
+    public void vagueTitlesAreKeyedByTheStreamToo() {
+        String a = BgSubsQuery.libraryKey(BgSubsQuery.parse("Новини"), "http://host/timeshift/u/p/60/2026-10-26:19-00/1.ts");
+        String b = BgSubsQuery.libraryKey(BgSubsQuery.parse("Новини"), "http://host/timeshift/u/p/60/2026-10-27:19-00/1.ts");
+        assertNotEquals(a, b);
+        assertTrue(a.startsWith("новини #"));
+        assertFalse("stream URL must not be stored in clear", a.contains("timeshift"));
+        assertNotEquals(BgSubsQuery.libraryKey(BgSubsQuery.parse("Show S01"), "http://h/1.mp4"),
+                BgSubsQuery.libraryKey(BgSubsQuery.parse("Show S01"), "http://h/2.mp4"));
+    }
+
+    @Test
+    public void vagueTitleWithoutStreamHasNoKey() {
+        assertEquals(null, BgSubsQuery.libraryKey(BgSubsQuery.parse("Новини"), null));
     }
 }

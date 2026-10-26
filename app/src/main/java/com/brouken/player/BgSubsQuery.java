@@ -82,15 +82,8 @@ final class BgSubsQuery {
         return title == null ? "" : title.toLowerCase(Locale.ROOT).replaceAll("[^\\p{L}\\p{N}]+", " ").trim();
     }
 
-    /** Identifies the film/episode for saved subtitles: "black doves s01e02", "inception 2010". */
-    static String libraryKey(BgSubsQuery q) {
-        String key = aliasKey(q.title);
-        if (q.season != null) {
-            return key + (q.episode != null
-                    ? String.format(Locale.ROOT, " s%02de%02d", q.season, q.episode)
-                    : String.format(Locale.ROOT, " s%02d", q.season));
-        }
-        return q.year != null ? key + " " + q.year : key;
+    static String libraryKey(BgSubsQuery q, String stream) {
+        throw new UnsupportedOperationException();
     }
 
     static String fieldText(Integer value) {

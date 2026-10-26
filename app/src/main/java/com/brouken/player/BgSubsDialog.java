@@ -90,7 +90,7 @@ final class BgSubsDialog {
     /** Library key of the video TiviMate is playing, or null when it sent no usable title. */
     private String currentKey() {
         BgSubsQuery q = prefill();
-        return q.title.isEmpty() ? null : BgSubsQuery.libraryKey(q);
+        return q.title.isEmpty() ? null : BgSubsQuery.libraryKey(q, String.valueOf(activity.mPrefs.mediaUri));
     }
 
     void show() {
