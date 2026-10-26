@@ -2,7 +2,11 @@
 <resources>
     <string name="bgsubs_button" translatable="false">BG субтитри</string>
     <string name="bgsubs_search_title" translatable="false">BG субтитри</string>
-    <string name="bgsubs_search_hint" translatable="false">Заглавие на английски (напр. Inception 2010)</string>
+    <string name="bgsubs_field_title" translatable="false">Име (на английски)</string>
+    <string name="bgsubs_field_season" translatable="false">Сезон</string>
+    <string name="bgsubs_field_episode" translatable="false">Серия</string>
+    <string name="bgsubs_field_year" translatable="false">Година</string>
+    <string name="bgsubs_bad_number" translatable="false">Сезон, серия и година трябва да са числа</string>
     <string name="bgsubs_search" translatable="false">Търси</string>
     <string name="bgsubs_new_search" translatable="false">Ново търсене</string>
     <string name="bgsubs_searching" translatable="false">Търсене…</string>

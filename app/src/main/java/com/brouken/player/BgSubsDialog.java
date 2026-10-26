@@ -14,6 +14,8 @@ import android.text.style.StyleSpan;
 import android.util.TypedValue;
 import android.view.Gravity;
 import android.view.inputmethod.EditorInfo;
+import android.view.WindowManager;
+import android.widget.Button;
 import android.widget.EditText;
 import android.widget.LinearLayout;
 import android.widget.TextView;
@@ -28,6 +30,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Locale;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -39,6 +42,7 @@ final class BgSubsDialog {
     static final String PREF_SERVER = "bgsubs_server";
     static final String PREF_TOKEN = "bgsubs_token";
     static final String DEFAULT_SERVER = "https://subs.dushkov.eu";
+    private static final String ALIAS_PREFIX = "bgsubs_alias_";
 
     private interface Work<T> {
         T run(BgSubsClient client) throws BgSubsClient.BgSubsException;
@@ -55,7 +59,7 @@ final class BgSubsDialog {
     // touched on the UI thread only
     private int generation;
     private BgSubsClient client;
-    private String lastInput;
+    private BgSubsQuery lastQuery;
     private BgSubsClient.SearchResponse lastResponse;
 
     BgSubsDialog(PlayerActivity activity) {
@@ -66,7 +70,7 @@ final class BgSubsDialog {
         if (lastResponse != null) {
             showResults();
         } else {
-            showSearch(prefill());
+            showSearch(lastQuery != null ? lastQuery : prefill());
         }
     }
 
@@ -76,76 +80,119 @@ final class BgSubsDialog {
         if (client != null) {
             client.cancel();
         }
-        lastInput = null;
+        lastQuery = null;
         lastResponse = null;
     }
 
-    private void showSearch(String text) {
+    private void showSearch(BgSubsQuery query) {
         final int pad = dp(20);
         LinearLayout layout = new LinearLayout(activity);
         layout.setOrientation(LinearLayout.VERTICAL);
         layout.setPadding(pad, dp(8), pad, 0);
 
-        final EditText input = new EditText(activity);
-        input.setSingleLine(true);
-        input.setInputType(InputType.TYPE_CLASS_TEXT);
-        input.setImeOptions(EditorInfo.IME_ACTION_SEARCH);
-        input.setHint(R.string.bgsubs_search_hint);
-        input.setText(text);
-        input.setSelection(input.getText().length());
-        layout.addView(input);
+        final EditText title = field(InputType.TYPE_CLASS_TEXT, query.title);
+        layout.addView(label(R.string.bgsubs_field_title));
+        layout.addView(title);
 
-        TextView extras = new TextView(activity);
-        extras.setText(tivimateInfo());
-        extras.setTextSize(TypedValue.COMPLEX_UNIT_SP, 11);
-        extras.setAlpha(0.6f);
-        extras.setPadding(0, dp(8), 0, 0);
-        layout.addView(extras);
+        LinearLayout row = new LinearLayout(activity);
+        row.setOrientation(LinearLayout.HORIZONTAL);
+        final EditText season = field(InputType.TYPE_CLASS_NUMBER, BgSubsQuery.fieldText(query.season));
+        final EditText episode = field(InputType.TYPE_CLASS_NUMBER, BgSubsQuery.fieldText(query.episode));
+        final EditText year = field(InputType.TYPE_CLASS_NUMBER, BgSubsQuery.fieldText(query.year));
+        row.addView(column(R.string.bgsubs_field_season, season));
+        row.addView(column(R.string.bgsubs_field_episode, episode));
+        row.addView(column(R.string.bgsubs_field_year, year));
+        layout.addView(row);
 
-        final AlertDialog dialog = new AlertDialog.Builder(activity)
+        final AlertDialog dialog = builder()
                 .setTitle(R.string.bgsubs_search_title)
                 .setView(layout)
-                .setPositiveButton(R.string.bgsubs_search, (d, w) -> search(input.getText().toString()))
+                .setPositiveButton(R.string.bgsubs_search, null)  // click handled below so errors keep the form open
                 .setNegativeButton(android.R.string.cancel, null)
                 .create();
-        input.setOnEditorActionListener((v, actionId, event) -> {
+        final Runnable submit = () -> {
+            final BgSubsQuery q;
+            try {
+                q = BgSubsQuery.fromFields(title.getText().toString(), season.getText().toString(),
+                        episode.getText().toString(), year.getText().toString());
+            } catch (IllegalArgumentException e) {
+                boolean noTitle = title.getText().toString().trim().isEmpty();
+                toast(activity.getString(noTitle ? R.string.bgsubs_enter_title : R.string.bgsubs_bad_number));
+                (noTitle ? title : season).requestFocus();
+                return;
+            }
+            dialog.dismiss();
+            rememberCorrectedTitle(q);
+            search(q);
+        };
+        year.setImeOptions(EditorInfo.IME_ACTION_SEARCH);
+        year.setOnEditorActionListener((v, actionId, event) -> {
             if (actionId == EditorInfo.IME_ACTION_SEARCH) {
-                dialog.dismiss();
-                search(input.getText().toString());
+                submit.run();
                 return true;
             }
             return false;
         });
+        // fields are pre-filled: start on "Търси" and keep the on-screen keyboard closed until a field is picked
+        if (dialog.getWindow() != null) {
+            dialog.getWindow().setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_HIDDEN);
+        }
+        dialog.setOnShowListener(d -> {
+            Button searchButton = dialog.getButton(AlertDialog.BUTTON_POSITIVE);
+            searchButton.setOnClickListener(v -> submit.run());
+            searchButton.requestFocus();
+        });
         dialog.show();
     }
 
-    private void search(String text) {
-        final BgSubsQuery query;
-        try {
-            query = BgSubsQuery.parse(text);
-        } catch (IllegalArgumentException e) {
-            toast(activity.getString(R.string.bgsubs_enter_title));
-            showSearch(text);
-            return;
-        }
-        lastInput = text;
+    private EditText field(int inputType, String text) {
+        EditText e = new EditText(activity);
+        e.setSingleLine(true);
+        e.setInputType(inputType);
+        e.setImeOptions(EditorInfo.IME_ACTION_NEXT);
+        e.setText(text);
+        e.setSelection(e.getText().length());
+        return e;
+    }
+
+    private TextView label(int textRes) {
+        TextView t = new TextView(activity);
+        t.setText(textRes);
+        t.setTextSize(TypedValue.COMPLEX_UNIT_SP, 12);
+        t.setAlpha(0.7f);
+        t.setPadding(0, dp(6), 0, 0);
+        return t;
+    }
+
+    private LinearLayout column(int labelRes, EditText field) {
+        LinearLayout c = new LinearLayout(activity);
+        c.setOrientation(LinearLayout.VERTICAL);
+        c.setPadding(0, 0, dp(16), 0);
+        c.addView(label(labelRes));
+        c.addView(field);
+        c.setLayoutParams(new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f));
+        return c;
+    }
+
+    private void search(BgSubsQuery query) {
+        lastQuery = query;
         run(R.string.bgsubs_searching, c -> c.search(query), response -> {
             lastResponse = response;
             showResults();
-        }, () -> showSearch(text));
+        }, () -> showSearch(query));
     }
 
     private void showResults() {
         final BgSubsClient.SearchResponse response = lastResponse;
         if (response.results.isEmpty()) {
-            StringBuilder message = new StringBuilder(activity.getString(R.string.bgsubs_no_results, lastInput));
+            StringBuilder message = new StringBuilder(activity.getString(R.string.bgsubs_no_results, describe(lastQuery)));
             if (!response.errors.isEmpty()) {
                 message.append("\n\n").append(activity.getString(R.string.bgsubs_errors, join(response.errors)));
             }
-            new AlertDialog.Builder(activity)
+            builder()
                     .setTitle(R.string.bgsubs_results_title)
                     .setMessage(message)
-                    .setPositiveButton(R.string.bgsubs_new_search, (d, w) -> showSearch(lastInput))
+                    .setPositiveButton(R.string.bgsubs_new_search, (d, w) -> showSearch(lastQuery))
                     .setNegativeButton(android.R.string.cancel, null)
                     .show();
             return;
@@ -157,7 +204,7 @@ final class BgSubsDialog {
         if (!response.errors.isEmpty()) {
             labels.add(activity.getString(R.string.bgsubs_errors, join(response.errors)));
         }
-        new AlertDialog.Builder(activity)
+        builder()
                 .setTitle(activity.getString(R.string.bgsubs_results_count, response.results.size()))
                 .setItems(labels.toArray(new CharSequence[0]), (d, which) -> {
                     if (which < response.results.size()) {
@@ -166,7 +213,7 @@ final class BgSubsDialog {
                         showResults();  // the error line is not selectable
                     }
                 })
-                .setNeutralButton(R.string.bgsubs_new_search, (d, w) -> showSearch(lastInput))
+                .setNeutralButton(R.string.bgsubs_new_search, (d, w) -> showSearch(lastQuery))
                 .setNegativeButton(android.R.string.cancel, null)
                 .show();
     }
@@ -207,7 +254,7 @@ final class BgSubsDialog {
             for (int i = 0; i < names.length; i++) {
                 names[i] = files.get(i).name;
             }
-            new AlertDialog.Builder(activity)
+            builder()
                     .setTitle(R.string.bgsubs_files_title)
                     .setItems(names, (d, which) -> download(result, files.get(which)))
                     .setNegativeButton(android.R.string.cancel, (d, w) -> showResults())
@@ -268,7 +315,7 @@ final class BgSubsDialog {
         final BgSubsClient c = newClient();
         client = c;
         final int gen = ++generation;
-        final AlertDialog progress = new AlertDialog.Builder(activity)
+        final AlertDialog progress = builder()
                 .setMessage(messageRes)
                 .setCancelable(false)
                 .setNegativeButton(android.R.string.cancel, (d, w) -> {
@@ -304,7 +351,7 @@ final class BgSubsDialog {
     }
 
     private void showError(BgSubsClient.BgSubsException e, Runnable afterError) {
-        AlertDialog.Builder builder = new AlertDialog.Builder(activity).setTitle(R.string.bgsubs_search_title);
+        AlertDialog.Builder builder = builder().setTitle(R.string.bgsubs_search_title);
         switch (e.kind) {
             case NO_TOKEN:
                 builder.setMessage(R.string.bgsubs_error_no_token)
@@ -336,7 +383,7 @@ final class BgSubsDialog {
     }
 
     private BgSubsClient newClient() {
-        SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(activity);
+        SharedPreferences prefs = prefs();
         String server = prefs.getString(PREF_SERVER, DEFAULT_SERVER);
         if (server == null || server.trim().isEmpty()) {
             server = DEFAULT_SERVER;
@@ -344,29 +391,66 @@ final class BgSubsDialog {
         return new BgSubsClient(server, prefs.getString(PREF_TOKEN, ""), http);
     }
 
-    private String prefill() {
-        if (activity.apiTitle != null && !activity.apiTitle.trim().isEmpty()) {
-            return activity.apiTitle.trim();
+    /** Fields from what TiviMate sent ("Black Doves - S01E02 - …"), with a remembered name correction applied. */
+    private BgSubsQuery prefill() {
+        BgSubsQuery q = tivimateQuery();
+        if (q == null) {
+            return new BgSubsQuery("", null, null, null);
         }
-        Uri media = activity.mPrefs.mediaUri;
-        String segment = media == null ? null : media.getLastPathSegment();
-        if (segment == null) {
-            return "";
-        }
-        int dot = segment.lastIndexOf('.');
-        if (dot > 0) {
-            segment = segment.substring(0, dot);
-        }
-        return segment.replace('.', ' ').replace('_', ' ').trim();
+        String corrected = prefs().getString(ALIAS_PREFIX + BgSubsQuery.aliasKey(q.title), null);
+        return corrected == null ? q : new BgSubsQuery(corrected, q.year, q.season, q.episode);
     }
 
-    private String tivimateInfo() {
-        Uri media = activity.mPrefs.mediaUri;
-        String uri = media == null ? "" : media.toString();
-        if (uri.length() > 60) {
-            uri = "…" + uri.substring(uri.length() - 60);
+    /** TiviMate's title, or the stream's file name when there is none; null if nothing usable. */
+    private BgSubsQuery tivimateQuery() {
+        String raw = activity.apiTitle;
+        if (raw == null || raw.trim().isEmpty()) {
+            Uri media = activity.mPrefs.mediaUri;
+            raw = media == null ? null : media.getLastPathSegment();
+            if (raw != null && raw.lastIndexOf('.') > 0) {
+                raw = raw.substring(0, raw.lastIndexOf('.'));
+            }
         }
-        return "TiviMate: title=\"" + (activity.apiTitle == null ? "" : activity.apiTitle) + "\", uri=" + uri;
+        try {
+            return raw == null ? null : BgSubsQuery.parse(raw);
+        } catch (IllegalArgumentException e) {
+            return null;
+        }
+    }
+
+    /** "Black Doves" typed as "Black Doves 2024" → used for the next episodes too; typing it back forgets it. */
+    private void rememberCorrectedTitle(BgSubsQuery searched) {
+        BgSubsQuery original = tivimateQuery();
+        if (original == null) {
+            return;
+        }
+        String key = ALIAS_PREFIX + BgSubsQuery.aliasKey(original.title);
+        if (BgSubsQuery.aliasKey(searched.title).equals(BgSubsQuery.aliasKey(original.title))) {
+            prefs().edit().remove(key).apply();
+        } else {
+            prefs().edit().putString(key, searched.title).apply();
+        }
+    }
+
+    private static String describe(BgSubsQuery q) {
+        if (q == null) {
+            return "";
+        }
+        if (q.season != null) {
+            return q.episode != null
+                    ? String.format(Locale.ROOT, "%s S%02dE%02d", q.title, q.season, q.episode)
+                    : String.format(Locale.ROOT, "%s S%02d", q.title, q.season);
+        }
+        return q.year != null ? q.title + " " + q.year : q.title;
+    }
+
+    private SharedPreferences prefs() {
+        return PreferenceManager.getDefaultSharedPreferences(activity);
+    }
+
+    private AlertDialog.Builder builder() {
+        // own dark theme: the TV's default dialog theme is light grey and washed out the result colours
+        return new AlertDialog.Builder(activity, android.R.style.Theme_Material_Dialog_Alert);
     }
 
     private static String join(List<String> items) {
