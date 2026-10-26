@@ -237,4 +237,28 @@ public class BgSubsClientTest {
             }
         }
     }
+
+    private static BgSubsClient.Result result(String source, String release) {
+        BgSubsClient.Result r = new BgSubsClient.Result();
+        r.source = source;
+        r.title = "Black Doves";
+        r.release = release;
+        return r;
+    }
+
+    @Test
+    public void sitePrefixesAreStrippedFromRelease() {
+        assertEquals("Black.Doves.S01E02.1080p.NF.WEB-DL", result("unacs", "За рилийза Black.Doves.S01E02.1080p.NF.WEB-DL").primaryLine());
+        assertEquals("Avatar.2009.720p.BDRip", result("unacs", "Рилийз: Avatar.2009.720p.BDRip").primaryLine());
+        assertEquals("breaking.bad.s01e02.dsr", result("unacs", "Субтитри за версията: breaking.bad.s01e02.dsr").primaryLine());
+        assertEquals("Тези субтитри са рипнати от Blu-Ray", result("unacs", "Тези субтитри са рипнати от Blu-Ray").primaryLine());
+        assertEquals("Black Doves", result("unacs", "За рилийза").primaryLine());
+    }
+
+    @Test
+    public void detailLineIsMetaWithoutSource() throws Exception {
+        BgSubsClient.SearchResponse r = BgSubsClient.parseSearch(SEARCH_JSON);
+        assertEquals("23.976 fps · 12\u00A0474 изтегляния · 2 файла · 14.11.2010", r.results.get(0).detailLine());
+        assertEquals("", r.results.get(1).detailLine());
+    }
 }

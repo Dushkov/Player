@@ -246,6 +246,10 @@ final class BgSubsClient {
             return title != null ? title : "?";
         }
 
+        String detailLine() {
+            throw new UnsupportedOperationException();
+        }
+
         /** Second row: source · fps · downloads · files · date, skipping what the source does not give. */
         String metaLine() {
             List<String> parts = new ArrayList<>();
