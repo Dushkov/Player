@@ -67,6 +67,18 @@ final class BgSubsQuery {
         return new BgSubsQuery(title, year, season, episode);
     }
 
+    static BgSubsQuery fromFields(String title, String season, String episode, String year) {
+        throw new UnsupportedOperationException();
+    }
+
+    static String aliasKey(String title) {
+        throw new UnsupportedOperationException();
+    }
+
+    static String fieldText(Integer value) {
+        throw new UnsupportedOperationException();
+    }
+
     /** The same search with the whole typed title (a number like "2049" stays in it) and no year. */
     BgSubsQuery withoutYear(String originalInput) {
         String full = clean(cutAtReleaseWord(separatorsToSpaces(originalInput)));

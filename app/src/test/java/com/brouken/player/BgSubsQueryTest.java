@@ -115,4 +115,46 @@ public class BgSubsQueryTest {
     public void capitalizedBulgarianSeasonWord() {
         assertQuery("Игра на тронове СЕЗОН 3", "Игра на тронове", null, 3, null);
     }
+
+    @Test
+    public void tivimateEpisodeTitleIsSplitIntoFields() {
+        assertQuery("Black Doves - S01E02 - A Little Black Dove", "Black Doves", null, 1, 2);
+    }
+
+    @Test
+    public void fromFieldsTrimsAndTreatsEmptyAsUnset() {
+        BgSubsQuery q = BgSubsQuery.fromFields("  Black Doves ", " 1", "2 ", "");
+        assertEquals("Black Doves", q.title);
+        assertEquals(Integer.valueOf(1), q.season);
+        assertEquals(Integer.valueOf(2), q.episode);
+        assertEquals(null, q.year);
+    }
+
+    @Test
+    public void fromFieldsMovie() {
+        BgSubsQuery q = BgSubsQuery.fromFields("Inception", "", "", "2010");
+        assertEquals(Integer.valueOf(2010), q.year);
+        assertEquals(null, q.season);
+    }
+
+    @Test
+    public void fromFieldsRejectsBlankTitleAndBadNumbers() {
+        assertThrows(IllegalArgumentException.class, () -> BgSubsQuery.fromFields(" ", "1", "2", ""));
+        assertThrows(IllegalArgumentException.class, () -> BgSubsQuery.fromFields("X", "a", "", ""));
+        assertThrows(IllegalArgumentException.class, () -> BgSubsQuery.fromFields("X", "", "-1", ""));
+    }
+
+    @Test
+    public void aliasKeyIgnoresCaseAndPunctuation() {
+        assertEquals("black doves", BgSubsQuery.aliasKey("Black Doves"));
+        assertEquals("black doves", BgSubsQuery.aliasKey("  black-doves! "));
+        assertEquals("игра на тронове", BgSubsQuery.aliasKey("Игра на Тронове"));
+    }
+
+    @Test
+    public void toFieldTextShowsEmptyForUnset() {
+        BgSubsQuery q = BgSubsQuery.parse("Inception 2010");
+        assertEquals("", BgSubsQuery.fieldText(q.season));
+        assertEquals("2010", BgSubsQuery.fieldText(q.year));
+    }
 }
