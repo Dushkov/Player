@@ -82,6 +82,10 @@ final class BgSubsQuery {
         return title == null ? "" : title.toLowerCase(Locale.ROOT).replaceAll("[^\\p{L}\\p{N}]+", " ").trim();
     }
 
+    static String libraryKey(BgSubsQuery q) {
+        throw new UnsupportedOperationException();
+    }
+
     static String fieldText(Integer value) {
         return value == null ? "" : value.toString();
     }

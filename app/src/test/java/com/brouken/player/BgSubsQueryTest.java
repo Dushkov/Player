@@ -157,4 +157,12 @@ public class BgSubsQueryTest {
         assertEquals("", BgSubsQuery.fieldText(q.season));
         assertEquals("2010", BgSubsQuery.fieldText(q.year));
     }
+
+    @Test
+    public void libraryKeyIdentifiesTheVideo() {
+        assertEquals("black doves s01e02", BgSubsQuery.libraryKey(BgSubsQuery.parse("Black Doves - S01E02 - A Little Black Dove")));
+        assertEquals("inception 2010", BgSubsQuery.libraryKey(BgSubsQuery.parse("Inception (2010)")));
+        assertEquals("inception", BgSubsQuery.libraryKey(BgSubsQuery.parse("Inception")));
+        assertEquals("breaking bad s03", BgSubsQuery.libraryKey(BgSubsQuery.parse("Breaking Bad Season 3")));
+    }
 }
