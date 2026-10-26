@@ -240,26 +240,46 @@ final class BgSubsClient {
         String id, source, title, release, fps, date;
         Integer year, downloads, filesHint;
 
-        /** First row: the release name, or the title when the source has none. */
+        /** First row: the release name (without site wording such as "За рилийза"), or the title. */
         String primaryLine() {
-            if (release != null && !release.isEmpty()) return release;
+            String r = stripSitePrefix(release);
+            if (!r.isEmpty()) return r;
             return title != null ? title : "?";
         }
 
+        /** fps · downloads · files · date, skipping what the source does not give. */
         String detailLine() {
-            throw new UnsupportedOperationException();
-        }
-
-        /** Second row: source · fps · downloads · files · date, skipping what the source does not give. */
-        String metaLine() {
             List<String> parts = new ArrayList<>();
-            parts.add(sourceName(source));
             if (fps != null) parts.add(fps + " fps");
             if (downloads != null) parts.add(groupThousands(downloads) + (downloads == 1 ? " изтегляне" : " изтегляния"));
             if (filesHint != null && filesHint > 1) parts.add(filesHint + " файла");
             if (date != null) parts.add(date);
             return String.join(" · ", parts);
         }
+
+        /** Second row as one string: source · details. */
+        String metaLine() {
+            String details = detailLine();
+            return details.isEmpty() ? sourceName(source) : sourceName(source) + " · " + details;
+        }
+    }
+
+    // wording subsunacs puts before the release name in its notes
+    private static final String[] SITE_PREFIXES = {
+            "субтитри за версията", "субтитрите са за", "за рилийза", "за релийза", "рилийз", "релийз",
+    };
+
+    static String stripSitePrefix(String text) {
+        if (text == null) return "";
+        String t = text.trim();
+        String lower = t.toLowerCase(Locale.ROOT);
+        for (String prefix : SITE_PREFIXES) {
+            if (lower.startsWith(prefix)) {
+                t = t.substring(prefix.length()).replaceFirst("^[\\s:\\-]+", "");
+                break;
+            }
+        }
+        return t.trim();
     }
 
     static final class SearchResponse {
