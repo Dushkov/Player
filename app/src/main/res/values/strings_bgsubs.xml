@@ -6,6 +6,10 @@
     <string name="bgsubs_field_season" translatable="false">Сезон</string>
     <string name="bgsubs_field_episode" translatable="false">Серия</string>
     <string name="bgsubs_field_year" translatable="false">Година</string>
+    <string name="bgsubs_saved_loaded" translatable="false">Заредени запазени BG субтитри: %s</string>
+    <string name="bgsubs_saved_current" translatable="false">Запазени: %s</string>
+    <string name="bgsubs_saved_forget" translatable="false">Забрави</string>
+    <string name="bgsubs_saved_forgotten" translatable="false">Запазените субтитри са премахнати</string>
     <string name="bgsubs_bad_number" translatable="false">Сезон, серия и година трябва да са числа</string>
     <string name="bgsubs_search" translatable="false">Търси</string>
     <string name="bgsubs_new_search" translatable="false">Ново търсене</string>

@@ -62,8 +62,35 @@ final class BgSubsDialog {
     private BgSubsQuery lastQuery;
     private BgSubsClient.SearchResponse lastResponse;
 
+    private final BgSubsLibrary library;
+
     BgSubsDialog(PlayerActivity activity) {
         this.activity = activity;
+        this.library = new BgSubsLibrary(new File(activity.getFilesDir(), "bgsubs-library"), 300);
+    }
+
+    /**
+     * Called as the player starts a video: if subtitles were saved for this film/episode, set them as the
+     * subtitle before the media item is built, so they show from the first frame without a network request.
+     */
+    void applySaved() {
+        if (activity.mPrefs.subtitleUri != null || (activity.apiAccess && !activity.apiSubs.isEmpty())) {
+            return;  // already has a subtitle (ours or TiviMate's)
+        }
+        String key = currentKey();
+        BgSubsLibrary.Entry saved = key == null ? null : library.find(key);
+        if (saved == null) {
+            return;
+        }
+        activity.mPrefs.updateSubtitle(Uri.fromFile(saved.file));
+        library.touch(key, System.currentTimeMillis());
+        toast(activity.getString(R.string.bgsubs_saved_loaded, saved.name));
+    }
+
+    /** Library key of the video TiviMate is playing, or null when it sent no usable title. */
+    private String currentKey() {
+        BgSubsQuery q = prefill();
+        return q.title.isEmpty() ? null : BgSubsQuery.libraryKey(q);
     }
 
     void show() {
@@ -103,6 +130,27 @@ final class BgSubsDialog {
         row.addView(column(R.string.bgsubs_field_episode, episode));
         row.addView(column(R.string.bgsubs_field_year, year));
         layout.addView(row);
+
+        final String key = currentKey();
+        final BgSubsLibrary.Entry saved = key == null ? null : library.find(key);
+        if (saved != null) {
+            LinearLayout savedRow = new LinearLayout(activity);
+            savedRow.setOrientation(LinearLayout.HORIZONTAL);
+            savedRow.setPadding(0, dp(12), 0, 0);
+            TextView savedText = label(0);
+            savedText.setText(activity.getString(R.string.bgsubs_saved_current, saved.name));
+            savedText.setLayoutParams(new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f));
+            Button forget = new Button(activity);
+            forget.setText(R.string.bgsubs_saved_forget);
+            forget.setOnClickListener(v -> {
+                library.forget(key);
+                savedRow.setVisibility(View.GONE);
+                toast(activity.getString(R.string.bgsubs_saved_forgotten));
+            });
+            savedRow.addView(savedText);
+            savedRow.addView(forget);
+            layout.addView(savedRow);
+        }
 
         final AlertDialog dialog = builder()
                 .setTitle(R.string.bgsubs_search_title)
@@ -157,7 +205,9 @@ final class BgSubsDialog {
 
     private TextView label(int textRes) {
         TextView t = new TextView(activity);
-        t.setText(textRes);
+        if (textRes != 0) {
+            t.setText(textRes);
+        }
         t.setTextSize(TypedValue.COMPLEX_UNIT_SP, 12);
         t.setAlpha(0.7f);
         t.setPadding(0, dp(6), 0, 0);
@@ -326,10 +376,24 @@ final class BgSubsDialog {
         run(R.string.bgsubs_loading, c -> c.download(result.id, file.n), bytes -> {
             try {
                 apply(write(file.name, bytes), file.name);
+                remember(file.name, bytes);
             } catch (IOException e) {
                 toast(activity.getString(R.string.bgsubs_error_server, e.getMessage()));
             }
         }, this::showResults);
+    }
+
+    /** Keeps the chosen subtitle for this film/episode; it then loads by itself next time. */
+    private void remember(String name, byte[] bytes) {
+        String key = currentKey();
+        if (key == null) {
+            return;
+        }
+        try {
+            library.save(key, name, bytes, System.currentTimeMillis());
+        } catch (IOException e) {
+            toast(activity.getString(R.string.bgsubs_error_server, e.getMessage()));
+        }
     }
 
     private File write(String name, byte[] bytes) throws IOException {

@@ -1192,6 +1192,9 @@ public class PlayerActivity extends Activity {
     }
 
     public void initializePlayer() {
+        if (bgSubsDialog != null) {
+            bgSubsDialog.applySaved();
+        }
         boolean isNetworkUri = Utils.isSupportedNetworkUri(mPrefs.mediaUri);
         haveMedia = mPrefs.mediaUri != null;
 
