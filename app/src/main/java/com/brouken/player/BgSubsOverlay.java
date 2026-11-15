@@ -54,6 +54,10 @@ final class BgSubsOverlay {
         return cues != null;
     }
 
+    BgSubsCues cues() {
+        return cues;
+    }
+
     long offsetMs() {
         return offsetMs;
     }

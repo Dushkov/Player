@@ -75,7 +75,9 @@ final class BgSubsDialog {
     private final Runnable autoCloseSync = this::stopSync;
     private String loadedKey;        // library key of the subtitle on screen, null if none
     private boolean turnedOff;       // the viewer switched BG subtitles off for this video
-    private TextView syncBar;        // non-null while the sync bar is open
+    private LinearLayout syncBar;    // non-null while the sync bar is open
+    private boolean syncFine;        // false: "press OK when you hear …" step; true: ◀ ▶ fine tuning
+    private int tapCue = -1;         // the line waited for in the tap step
 
     BgSubsDialog(PlayerActivity activity) {
         this.activity = activity;
@@ -153,29 +155,67 @@ final class BgSubsDialog {
                 .show();
     }
 
-    /** Sync bar: the film keeps playing while ◀ ▶ (0.1 s) and ▲ ▼ (1 s) move the subtitles live. */
+    /**
+     * Sync in two steps while the film keeps playing: first OK when the shown line is heard (the offset is
+     * computed from that), then ◀ ▶ to fine-tune by what is seen ("text is late" / "text is early").
+     */
     private void startSync() {
         activity.playerView.hideController();
         if (syncBar == null) {
-            syncBar = new TextView(activity);
-            syncBar.setTextColor(0xFFFFFFFF);
-            syncBar.setTextSize(TypedValue.COMPLEX_UNIT_SP, 18);
-            syncBar.setGravity(Gravity.CENTER);
-            syncBar.setBackgroundColor(0xCC000000);
-            syncBar.setPadding(dp(24), dp(12), dp(24), dp(12));
+            syncBar = new LinearLayout(activity);
+            syncBar.setOrientation(LinearLayout.VERTICAL);
+            syncBar.setBackgroundColor(0xDD000000);
+            syncBar.setPadding(dp(28), dp(14), dp(28), dp(14));
             FrameLayout.LayoutParams params = new FrameLayout.LayoutParams(
-                    FrameLayout.LayoutParams.WRAP_CONTENT, FrameLayout.LayoutParams.WRAP_CONTENT,
-                    Gravity.TOP | Gravity.CENTER_HORIZONTAL);
+                    dp(720), FrameLayout.LayoutParams.WRAP_CONTENT, Gravity.TOP | Gravity.CENTER_HORIZONTAL);
             params.topMargin = dp(40);
             ((ViewGroup) activity.getWindow().getDecorView()).addView(syncBar, params);
         }
+        syncFine = false;
+        tapCue = PlayerActivity.player == null ? -1
+                : overlay.cues().nextCue(PlayerActivity.player.getCurrentPosition(), overlay.offsetMs());
         updateSyncBar();
     }
 
     private void updateSyncBar() {
-        syncBar.setText(activity.getString(R.string.bgsubs_sync_bar, BgSubsCues.syncStatus(overlay.offsetMs())));
-        handler.removeCallbacks(autoCloseSync);
-        handler.postDelayed(autoCloseSync, 5000);
+        syncBar.removeAllViews();
+        if (!syncFine) {
+            syncBar.addView(barText(activity.getString(R.string.bgsubs_tap_title), 16, 0xFFC0C0C0, Gravity.CENTER));
+            String line = tapCue < 0 ? activity.getString(R.string.bgsubs_tap_none)
+                    : "„" + overlay.cues().text(tapCue).replace('\n', ' ') + "“";
+            TextView quote = barText(line, 22, 0xFFFFFFFF, Gravity.CENTER);
+            quote.setTypeface(Typeface.DEFAULT_BOLD);
+            quote.setPadding(0, dp(6), 0, dp(6));
+            syncBar.addView(quote);
+            syncBar.addView(barText(activity.getString(R.string.bgsubs_tap_keys), 14, 0xFFC0C0C0, Gravity.CENTER));
+            handler.removeCallbacks(autoCloseSync);
+            handler.postDelayed(autoCloseSync, 120_000);  // waiting for a line can take a while
+        } else {
+            LinearLayout row = new LinearLayout(activity);
+            row.setOrientation(LinearLayout.HORIZONTAL);
+            TextView late = barText(activity.getString(R.string.bgsubs_fine_late), 20, 0xFFFFFFFF, Gravity.START);
+            TextView early = barText(activity.getString(R.string.bgsubs_fine_early), 20, 0xFFFFFFFF, Gravity.END);
+            late.setLayoutParams(new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f));
+            early.setLayoutParams(new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f));
+            row.addView(late);
+            row.addView(early);
+            syncBar.addView(row);
+            TextView now = barText(activity.getString(R.string.bgsubs_fine_now,
+                    BgSubsCues.offsetWords(overlay.offsetMs())), 15, 0xFFC0C0C0, Gravity.CENTER);
+            now.setPadding(0, dp(8), 0, 0);
+            syncBar.addView(now);
+            handler.removeCallbacks(autoCloseSync);
+            handler.postDelayed(autoCloseSync, 8000);
+        }
+    }
+
+    private TextView barText(String text, int sp, int color, int gravity) {
+        TextView t = new TextView(activity);
+        t.setText(text);
+        t.setTextSize(TypedValue.COMPLEX_UNIT_SP, sp);
+        t.setTextColor(color);
+        t.setGravity(gravity);
+        return t;
     }
 
     private void stopSync() {
@@ -193,35 +233,51 @@ final class BgSubsDialog {
                 : activity.getString(R.string.bgsubs_sync_saved, BgSubsCues.offsetWords(offset)));
     }
 
-    /** Called first in PlayerActivity.dispatchKeyEvent: while the sync bar is open the arrows move the subtitles. */
+    /** Called first in PlayerActivity.dispatchKeyEvent: while the sync bar is open the remote drives it. */
     boolean onKey(KeyEvent event) {
         if (syncBar == null) {
             return false;
         }
-        long step;
-        switch (event.getKeyCode()) {
-            case KeyEvent.KEYCODE_DPAD_LEFT: step = -100; break;
-            case KeyEvent.KEYCODE_DPAD_RIGHT: step = 100; break;
-            case KeyEvent.KEYCODE_DPAD_UP: step = 1000; break;
-            case KeyEvent.KEYCODE_DPAD_DOWN: step = -1000; break;
-            case KeyEvent.KEYCODE_DPAD_CENTER:
-            case KeyEvent.KEYCODE_ENTER:
-            case KeyEvent.KEYCODE_NUMPAD_ENTER:
-            case KeyEvent.KEYCODE_BACK:
-            case KeyEvent.KEYCODE_ESCAPE:
-                if (event.getAction() == KeyEvent.ACTION_UP) {
-                    stopSync();
-                }
-                return true;
-            default:
-                return false;  // play/pause and other keys keep working
+        int code = event.getKeyCode();
+        boolean ok = code == KeyEvent.KEYCODE_DPAD_CENTER || code == KeyEvent.KEYCODE_ENTER
+                || code == KeyEvent.KEYCODE_NUMPAD_ENTER;
+        boolean back = code == KeyEvent.KEYCODE_BACK || code == KeyEvent.KEYCODE_ESCAPE;
+        boolean arrow = code == KeyEvent.KEYCODE_DPAD_LEFT || code == KeyEvent.KEYCODE_DPAD_RIGHT
+                || code == KeyEvent.KEYCODE_DPAD_UP || code == KeyEvent.KEYCODE_DPAD_DOWN;
+        if (!ok && !back && !arrow) {
+            return false;  // play/pause and other keys keep working
         }
-        if (event.getAction() == KeyEvent.ACTION_DOWN) {
-            long offset = Math.max(-600_000, Math.min(600_000, overlay.offsetMs() + step));
-            overlay.setOffset(offset);
-            updateSyncBar();
+        boolean down = event.getAction() == KeyEvent.ACTION_DOWN;
+        if (back) {
+            if (!down) stopSync();
+        } else if (!syncFine) {
+            if (ok && !down && tapCue >= 0 && PlayerActivity.player != null) {
+                overlay.setOffset(clampOffset(overlay.cues().offsetForTap(tapCue, PlayerActivity.player.getCurrentPosition())));
+                syncFine = true;
+                updateSyncBar();
+            } else if (code == KeyEvent.KEYCODE_DPAD_DOWN && down && tapCue >= 0) {
+                int next = overlay.cues().nextCueAfter(tapCue);
+                if (next >= 0) tapCue = next;
+                updateSyncBar();
+            } else if ((code == KeyEvent.KEYCODE_DPAD_LEFT || code == KeyEvent.KEYCODE_DPAD_RIGHT) && down) {
+                syncFine = true;
+                updateSyncBar();
+            }
+        } else {
+            if (ok && !down) {
+                stopSync();
+            } else if (down && (code == KeyEvent.KEYCODE_DPAD_LEFT || code == KeyEvent.KEYCODE_DPAD_RIGHT)) {
+                // ◀ "text is late" shows it earlier; "text is early" ▶ shows it later. Holding repeats.
+                long step = code == KeyEvent.KEYCODE_DPAD_LEFT ? -200 : 200;
+                overlay.setOffset(clampOffset(overlay.offsetMs() + step));
+                updateSyncBar();
+            }
         }
         return true;
+    }
+
+    private static long clampOffset(long offsetMs) {
+        return Math.max(-600_000, Math.min(600_000, offsetMs));
     }
 
     /** Forget results and abandon requests in flight; called when a new video starts. */
