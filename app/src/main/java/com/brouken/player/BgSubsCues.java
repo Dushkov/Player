@@ -78,18 +78,18 @@ final class BgSubsCues {
         return visible == null ? Collections.<String>emptyList() : visible;
     }
 
+    /** "1,2 s по-късно", "0,5 s по-рано", "без отместване": the offset in words, not as a sign. */
     static String offsetWords(long offsetMs) {
-        throw new UnsupportedOperationException();
+        if (offsetMs == 0) {
+            return "без отместване";
+        }
+        String seconds = String.format(Locale.ROOT, "%.1f", Math.abs(offsetMs) / 1000.0).replace('.', ',');
+        return seconds + (offsetMs > 0 ? " s по-късно" : " s по-рано");
     }
 
+    /** Middle line of the sync bar. */
     static String syncStatus(long offsetMs) {
-        throw new UnsupportedOperationException();
-    }
-
-    /** "+1,2 s", "−0,5 s", "0,0 s" (Bulgarian decimal comma, real minus sign). */
-    static String offsetLabel(long offsetMs) {
-        String sign = offsetMs > 0 ? "+" : offsetMs < 0 ? "−" : "";
-        return sign + String.format(Locale.ROOT, "%.1f", Math.abs(offsetMs) / 1000.0).replace('.', ',') + " s";
+        return offsetMs == 0 ? "Субтитрите са без отместване" : "Субтитрите идват " + offsetWords(offsetMs);
     }
 
     private static long ms(Matcher m, int group) {

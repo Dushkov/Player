@@ -104,7 +104,7 @@ final class BgSubsDialog {
         loadedKey = key;
         library.touch(key, System.currentTimeMillis());
         String name = saved.offsetMs == 0 ? saved.name
-                : saved.name + " (" + BgSubsCues.offsetLabel(saved.offsetMs) + ")";
+                : saved.name + " (" + BgSubsCues.offsetWords(saved.offsetMs) + ")";
         toast(activity.getString(R.string.bgsubs_saved_loaded, name));
     }
 
@@ -127,7 +127,7 @@ final class BgSubsDialog {
     /** BG pressed while our subtitles are on screen: sync, pick others, or switch them off. */
     private void showMenu() {
         String[] items = {
-                activity.getString(R.string.bgsubs_menu_sync, BgSubsCues.offsetLabel(overlay.offsetMs())),
+                activity.getString(R.string.bgsubs_menu_sync, BgSubsCues.offsetWords(overlay.offsetMs())),
                 activity.getString(R.string.bgsubs_menu_other),
                 activity.getString(R.string.bgsubs_menu_off),
         };
@@ -173,7 +173,7 @@ final class BgSubsDialog {
     }
 
     private void updateSyncBar() {
-        syncBar.setText(activity.getString(R.string.bgsubs_sync_bar, BgSubsCues.offsetLabel(overlay.offsetMs())));
+        syncBar.setText(activity.getString(R.string.bgsubs_sync_bar, BgSubsCues.syncStatus(overlay.offsetMs())));
         handler.removeCallbacks(autoCloseSync);
         handler.postDelayed(autoCloseSync, 5000);
     }
@@ -188,7 +188,9 @@ final class BgSubsDialog {
         if (loadedKey != null) {
             library.setOffset(loadedKey, overlay.offsetMs());
         }
-        toast(activity.getString(R.string.bgsubs_sync_saved, BgSubsCues.offsetLabel(overlay.offsetMs())));
+        long offset = overlay.offsetMs();
+        toast(offset == 0 ? BgSubsCues.syncStatus(0)
+                : activity.getString(R.string.bgsubs_sync_saved, BgSubsCues.offsetWords(offset)));
     }
 
     /** Called first in PlayerActivity.dispatchKeyEvent: while the sync bar is open the arrows move the subtitles. */

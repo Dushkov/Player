@@ -10,8 +10,8 @@
     <string name="bgsubs_menu_other" translatable="false">Други субтитри</string>
     <string name="bgsubs_menu_off" translatable="false">Изключи субтитрите</string>
     <string name="bgsubs_off" translatable="false">BG субтитрите са изключени</string>
-    <string name="bgsubs_sync_bar" translatable="false">◀ −0,1 s      Субтитри: %s      +0,1 s ▶\n▲ ▼ = ±1 s   ·   OK = готово</string>
-    <string name="bgsubs_sync_saved" translatable="false">Синхрон: %s</string>
+    <string name="bgsubs_sync_bar" translatable="false">◀ по-рано      %s      по-късно ▶\n▲ ▼ = с 1 секунда   ·   OK = готово\nСубтитрите изпреварват речта → по-късно ▶   ·   Закъсняват → ◀ по-рано</string>
+    <string name="bgsubs_sync_saved" translatable="false">Субтитрите ще идват %s</string>
     <string name="bgsubs_saved_loaded" translatable="false">Заредени запазени BG субтитри: %s</string>
     <string name="bgsubs_saved_current" translatable="false">Запазени: %s</string>
     <string name="bgsubs_saved_forget" translatable="false">Забрави</string>
