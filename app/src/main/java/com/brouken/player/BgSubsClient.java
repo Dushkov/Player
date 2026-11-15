@@ -10,8 +10,10 @@ import java.util.concurrent.TimeUnit;
 
 import okhttp3.Call;
 import okhttp3.HttpUrl;
+import okhttp3.MediaType;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
+import okhttp3.RequestBody;
 import okhttp3.Response;
 import okhttp3.ResponseBody;
 
@@ -61,8 +63,48 @@ final class BgSubsClient {
         return get(url);
     }
 
+    /** Trades the server's login password for a token for this device (POST /login). */
     static String login(String server, String password, String device, OkHttpClient http) throws BgSubsException {
-        throw new UnsupportedOperationException();
+        String pw = password == null ? "" : password.trim();
+        if (pw.isEmpty()) {
+            throw new BgSubsException(BgSubsException.Kind.WRONG_PASSWORD, "empty password");
+        }
+        HttpUrl base = serverUrl(server);
+        if (base == null) {
+            throw new BgSubsException(BgSubsException.Kind.BAD_SERVER, "invalid server address");
+        }
+        String json;
+        try {
+            json = new JSONObject().put("password", pw).put("device", device == null ? "device" : device).toString();
+        } catch (JSONException e) {
+            throw new BgSubsException(BgSubsException.Kind.SERVER, "cannot build request");
+        }
+        Request request = new Request.Builder()
+                .url(base.newBuilder().addPathSegment("login").build())
+                .post(RequestBody.create(json, MediaType.get("application/json; charset=utf-8")))
+                .build();
+        OkHttpClient client = http.newBuilder().callTimeout(30, TimeUnit.SECONDS).build();
+        try (Response response = client.newCall(request).execute()) {
+            String body = response.body().string();
+            switch (response.code()) {
+                case 200:
+                    try {
+                        return new JSONObject(body).getString("token");
+                    } catch (JSONException e) {
+                        throw new BgSubsException(BgSubsException.Kind.SERVER, "invalid server response");
+                    }
+                case 401:
+                    throw new BgSubsException(BgSubsException.Kind.WRONG_PASSWORD, detail(body, "wrong password"));
+                case 429:
+                    throw new BgSubsException(BgSubsException.Kind.RATE_LIMITED, detail(body, "too many attempts"));
+                case 404:
+                    throw new BgSubsException(BgSubsException.Kind.LOGIN_DISABLED, detail(body, "login not enabled"));
+                default:
+                    throw new BgSubsException(BgSubsException.Kind.SERVER, detail(body, "HTTP " + response.code()));
+            }
+        } catch (IOException e) {
+            throw new BgSubsException(BgSubsException.Kind.NETWORK, e.getMessage() == null ? "network error" : e.getMessage());
+        }
     }
 
     /** Aborts the request in progress, if any; the blocked call then fails with NETWORK. */
