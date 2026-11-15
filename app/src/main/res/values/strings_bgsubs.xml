@@ -6,6 +6,12 @@
     <string name="bgsubs_field_season" translatable="false">Сезон</string>
     <string name="bgsubs_field_episode" translatable="false">Серия</string>
     <string name="bgsubs_field_year" translatable="false">Година</string>
+    <string name="bgsubs_menu_sync" translatable="false">Синхрон (%s)</string>
+    <string name="bgsubs_menu_other" translatable="false">Други субтитри</string>
+    <string name="bgsubs_menu_off" translatable="false">Изключи субтитрите</string>
+    <string name="bgsubs_off" translatable="false">BG субтитрите са изключени</string>
+    <string name="bgsubs_sync_bar" translatable="false">◀ −0,1 s      Субтитри: %s      +0,1 s ▶\n▲ ▼ = ±1 s   ·   OK = готово</string>
+    <string name="bgsubs_sync_saved" translatable="false">Синхрон: %s</string>
     <string name="bgsubs_saved_loaded" translatable="false">Заредени запазени BG субтитри: %s</string>
     <string name="bgsubs_saved_current" translatable="false">Запазени: %s</string>
     <string name="bgsubs_saved_forget" translatable="false">Забрави</string>

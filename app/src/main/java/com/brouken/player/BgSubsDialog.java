@@ -8,9 +8,12 @@ import android.graphics.Typeface;
 import android.graphics.drawable.ColorDrawable;
 import android.net.Uri;
 import android.os.Build;
+import android.os.Handler;
+import android.os.Looper;
 import android.text.InputType;
 import android.util.TypedValue;
 import android.view.Gravity;
+import android.view.KeyEvent;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.inputmethod.EditorInfo;
@@ -18,16 +21,19 @@ import android.view.WindowManager;
 import android.widget.BaseAdapter;
 import android.widget.Button;
 import android.widget.EditText;
+import android.widget.FrameLayout;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 import android.widget.Toast;
 
-import androidx.media3.common.MediaItem;
 import androidx.preference.PreferenceManager;
 
+import java.io.ByteArrayOutputStream;
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -64,10 +70,17 @@ final class BgSubsDialog {
     private BgSubsClient.SearchResponse lastResponse;
 
     private final BgSubsLibrary library;
+    private final BgSubsOverlay overlay;
+    private final Handler handler = new Handler(Looper.getMainLooper());
+    private final Runnable autoCloseSync = this::stopSync;
+    private String loadedKey;        // library key of the subtitle on screen, null if none
+    private boolean turnedOff;       // the viewer switched BG subtitles off for this video
+    private TextView syncBar;        // non-null while the sync bar is open
 
     BgSubsDialog(PlayerActivity activity) {
         this.activity = activity;
         this.library = new BgSubsLibrary(new File(activity.getFilesDir(), "bgsubs-library"), 300);
+        this.overlay = new BgSubsOverlay(activity);
     }
 
     /**
@@ -75,17 +88,24 @@ final class BgSubsDialog {
      * subtitle before the media item is built, so they show from the first frame without a network request.
      */
     void applySaved() {
-        if (activity.mPrefs.subtitleUri != null || (activity.apiAccess && !activity.apiSubs.isEmpty())) {
-            return;  // already has a subtitle (ours or TiviMate's)
+        if (turnedOff || overlay.isActive() || (activity.apiAccess && !activity.apiSubs.isEmpty())) {
+            return;  // already showing ours, switched off, or TiviMate passed its own subtitles
         }
         String key = currentKey();
         BgSubsLibrary.Entry saved = key == null ? null : library.find(key);
         if (saved == null) {
             return;
         }
-        activity.mPrefs.updateSubtitle(Uri.fromFile(saved.file));
+        try {
+            overlay.show(BgSubsCues.parse(readText(saved.file)), saved.offsetMs);
+        } catch (IOException e) {
+            return;
+        }
+        loadedKey = key;
         library.touch(key, System.currentTimeMillis());
-        toast(activity.getString(R.string.bgsubs_saved_loaded, saved.name));
+        String name = saved.offsetMs == 0 ? saved.name
+                : saved.name + " (" + BgSubsCues.offsetLabel(saved.offsetMs) + ")";
+        toast(activity.getString(R.string.bgsubs_saved_loaded, name));
     }
 
     /** Library key of the video TiviMate is playing, or null when it sent no usable title. */
@@ -95,11 +115,111 @@ final class BgSubsDialog {
     }
 
     void show() {
-        if (lastResponse != null) {
+        if (overlay.isActive()) {
+            showMenu();
+        } else if (lastResponse != null) {
             showResults();
         } else {
             showSearch(lastQuery != null ? lastQuery : prefill());
         }
+    }
+
+    /** BG pressed while our subtitles are on screen: sync, pick others, or switch them off. */
+    private void showMenu() {
+        String[] items = {
+                activity.getString(R.string.bgsubs_menu_sync, BgSubsCues.offsetLabel(overlay.offsetMs())),
+                activity.getString(R.string.bgsubs_menu_other),
+                activity.getString(R.string.bgsubs_menu_off),
+        };
+        builder()
+                .setTitle(R.string.bgsubs_search_title)
+                .setItems(items, (d, which) -> {
+                    if (which == 0) {
+                        startSync();
+                    } else if (which == 1) {
+                        if (lastResponse != null) {
+                            showResults();
+                        } else {
+                            showSearch(lastQuery != null ? lastQuery : prefill());
+                        }
+                    } else {
+                        overlay.clear();
+                        loadedKey = null;
+                        turnedOff = true;
+                        toast(activity.getString(R.string.bgsubs_off));
+                    }
+                })
+                .setNegativeButton(android.R.string.cancel, null)
+                .show();
+    }
+
+    /** Sync bar: the film keeps playing while ◀ ▶ (0.1 s) and ▲ ▼ (1 s) move the subtitles live. */
+    private void startSync() {
+        activity.playerView.hideController();
+        if (syncBar == null) {
+            syncBar = new TextView(activity);
+            syncBar.setTextColor(0xFFFFFFFF);
+            syncBar.setTextSize(TypedValue.COMPLEX_UNIT_SP, 18);
+            syncBar.setGravity(Gravity.CENTER);
+            syncBar.setBackgroundColor(0xCC000000);
+            syncBar.setPadding(dp(24), dp(12), dp(24), dp(12));
+            FrameLayout.LayoutParams params = new FrameLayout.LayoutParams(
+                    FrameLayout.LayoutParams.WRAP_CONTENT, FrameLayout.LayoutParams.WRAP_CONTENT,
+                    Gravity.TOP | Gravity.CENTER_HORIZONTAL);
+            params.topMargin = dp(40);
+            ((ViewGroup) activity.getWindow().getDecorView()).addView(syncBar, params);
+        }
+        updateSyncBar();
+    }
+
+    private void updateSyncBar() {
+        syncBar.setText(activity.getString(R.string.bgsubs_sync_bar, BgSubsCues.offsetLabel(overlay.offsetMs())));
+        handler.removeCallbacks(autoCloseSync);
+        handler.postDelayed(autoCloseSync, 5000);
+    }
+
+    private void stopSync() {
+        handler.removeCallbacks(autoCloseSync);
+        if (syncBar == null) {
+            return;
+        }
+        ((ViewGroup) syncBar.getParent()).removeView(syncBar);
+        syncBar = null;
+        if (loadedKey != null) {
+            library.setOffset(loadedKey, overlay.offsetMs());
+        }
+        toast(activity.getString(R.string.bgsubs_sync_saved, BgSubsCues.offsetLabel(overlay.offsetMs())));
+    }
+
+    /** Called first in PlayerActivity.dispatchKeyEvent: while the sync bar is open the arrows move the subtitles. */
+    boolean onKey(KeyEvent event) {
+        if (syncBar == null) {
+            return false;
+        }
+        long step;
+        switch (event.getKeyCode()) {
+            case KeyEvent.KEYCODE_DPAD_LEFT: step = -100; break;
+            case KeyEvent.KEYCODE_DPAD_RIGHT: step = 100; break;
+            case KeyEvent.KEYCODE_DPAD_UP: step = 1000; break;
+            case KeyEvent.KEYCODE_DPAD_DOWN: step = -1000; break;
+            case KeyEvent.KEYCODE_DPAD_CENTER:
+            case KeyEvent.KEYCODE_ENTER:
+            case KeyEvent.KEYCODE_NUMPAD_ENTER:
+            case KeyEvent.KEYCODE_BACK:
+            case KeyEvent.KEYCODE_ESCAPE:
+                if (event.getAction() == KeyEvent.ACTION_UP) {
+                    stopSync();
+                }
+                return true;
+            default:
+                return false;  // play/pause and other keys keep working
+        }
+        if (event.getAction() == KeyEvent.ACTION_DOWN) {
+            long offset = Math.max(-600_000, Math.min(600_000, overlay.offsetMs() + step));
+            overlay.setOffset(offset);
+            updateSyncBar();
+        }
+        return true;
     }
 
     /** Forget results and abandon requests in flight; called when a new video starts. */
@@ -110,6 +230,10 @@ final class BgSubsDialog {
         }
         lastQuery = null;
         lastResponse = null;
+        stopSync();
+        overlay.clear();
+        loadedKey = null;
+        turnedOff = false;
     }
 
     private void showSearch(BgSubsQuery query) {
@@ -145,9 +269,6 @@ final class BgSubsDialog {
             forget.setText(R.string.bgsubs_saved_forget);
             forget.setOnClickListener(v -> {
                 library.forget(key);
-                if (Uri.fromFile(saved.file).equals(activity.mPrefs.subtitleUri)) {
-                    activity.mPrefs.updateSubtitle(null);  // keeps playing; just don't point at the deleted file
-                }
                 savedRow.setVisibility(View.GONE);
                 toast(activity.getString(R.string.bgsubs_saved_forgotten));
             });
@@ -378,12 +499,8 @@ final class BgSubsDialog {
 
     private void download(BgSubsClient.Result result, BgSubsClient.FileEntry file) {
         run(R.string.bgsubs_loading, c -> c.download(result.id, file.n), bytes -> {
-            try {
-                apply(write(file.name, bytes), file.name);
-                remember(file.name, bytes);
-            } catch (IOException e) {
-                toast(activity.getString(R.string.bgsubs_error_server, e.getMessage()));
-            }
+            apply(file.name, bytes);
+            remember(file.name, bytes);
         }, this::showResults);
     }
 
@@ -400,42 +517,24 @@ final class BgSubsDialog {
         }
     }
 
-    private File write(String name, byte[] bytes) throws IOException {
-        File dir = new File(activity.getCacheDir(), "bgsubs");
-        File[] old = dir.listFiles();
-        if (old != null) {
-            for (File f : old) {
-                //noinspection ResultOfMethodCallIgnored
-                f.delete();
-            }
-        }
-        if (!dir.isDirectory() && !dir.mkdirs()) {
-            throw new IOException("cannot create " + dir);
-        }
-        String safe = name.replaceAll("[\\\\/:*?\"<>|]", "_");
-        if (!safe.toLowerCase().endsWith(".srt")) {
-            safe += ".srt";
-        }
-        File out = new File(dir, safe);
-        try (FileOutputStream stream = new FileOutputStream(out)) {
-            stream.write(bytes);
-        }
-        return out;
+    /** Shows the chosen subtitle at once (no reload of the video); timing starts at 0 for a new file. */
+    private void apply(String name, byte[] bytes) {
+        turnedOff = false;
+        overlay.show(BgSubsCues.parse(new String(bytes, StandardCharsets.UTF_8)), 0);
+        loadedKey = currentKey();
+        toast(activity.getString(R.string.bgsubs_loaded, name));
     }
 
-    // same steps as SubtitleFetcher: remember the subtitle and swap it into the current item, keeping the position
-    private void apply(File file, String name) {
-        Uri uri = Uri.fromFile(file);
-        activity.mPrefs.updateSubtitle(uri);
-        if (PlayerActivity.player != null) {
-            MediaItem mediaItem = PlayerActivity.player.getCurrentMediaItem();
-            if (mediaItem != null) {
-                MediaItem.SubtitleConfiguration subtitle = SubtitleUtils.buildSubtitle(activity, uri, name, true);
-                mediaItem = mediaItem.buildUpon().setSubtitleConfigurations(Collections.singletonList(subtitle)).build();
-                PlayerActivity.player.setMediaItem(mediaItem, false);
+    private static String readText(File file) throws IOException {
+        try (FileInputStream in = new FileInputStream(file)) {
+            ByteArrayOutputStream out = new ByteArrayOutputStream();
+            byte[] buffer = new byte[8192];
+            int n;
+            while ((n = in.read(buffer)) != -1) {
+                out.write(buffer, 0, n);
             }
+            return new String(out.toByteArray(), StandardCharsets.UTF_8);
         }
-        toast(activity.getString(R.string.bgsubs_loaded, name));
     }
 
     /** Runs `work` off the UI thread behind a cancellable progress dialog; results arrive on the UI thread. */

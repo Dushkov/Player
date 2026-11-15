@@ -965,6 +965,9 @@ public class PlayerActivity extends Activity {
 
     @Override
     public boolean dispatchKeyEvent(KeyEvent event) {
+        if (bgSubsDialog != null && bgSubsDialog.onKey(event)) {
+            return true;
+        }
         if (isScaling) {
             final int keyCode = event.getKeyCode();
             if (event.getAction() == KeyEvent.ACTION_DOWN) {
