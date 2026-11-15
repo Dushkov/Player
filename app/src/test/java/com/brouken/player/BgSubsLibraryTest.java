@@ -97,6 +97,22 @@ public class BgSubsLibraryTest {
         assertEquals("a.srt", library(10).find("k").name);
     }
 
+    @Test
+    public void offsetIsRememberedAndResetBySave() throws Exception {
+        BgSubsLibrary lib = library(10);
+        lib.save("k", "a.srt", bytes("a"), 1);
+        assertEquals(0, lib.find("k").offsetMs);
+        lib.setOffset("k", 1200);
+        assertEquals(1200, library(10).find("k").offsetMs);
+        lib.save("k", "b.srt", bytes("b"), 2);
+        assertEquals(0, lib.find("k").offsetMs);
+    }
+
+    @Test
+    public void offsetForUnknownKeyIsIgnored() {
+        library(10).setOffset("nothing", 500);
+    }
+
     private int srtFiles() {
         File[] files = new File(tmp.getRoot(), "lib").listFiles((dir, name) -> name.endsWith(".srt"));
         return files == null ? 0 : files.length;

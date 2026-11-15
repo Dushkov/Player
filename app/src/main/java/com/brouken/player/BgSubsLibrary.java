@@ -23,11 +23,13 @@ final class BgSubsLibrary {
         final String key;
         final String name;
         final File file;
+        final long offsetMs;
 
-        Entry(String key, String name, File file) {
+        Entry(String key, String name, File file, long offsetMs) {
             this.key = key;
             this.name = name;
             this.file = file;
+            this.offsetMs = offsetMs;
         }
     }
 
@@ -69,7 +71,7 @@ final class BgSubsLibrary {
             return null;
         }
         File file = new File(dir, entry.optString("file"));
-        return file.isFile() ? new Entry(key, entry.optString("name"), file) : null;
+        return file.isFile() ? new Entry(key, entry.optString("name"), file, 0) : null;
     }
 
     /** Marks an entry as just used, so the size limit drops others first. */
@@ -85,6 +87,10 @@ final class BgSubsLibrary {
         } catch (JSONException | IOException ignored) {
             // only affects which entry the limit drops first
         }
+    }
+
+    synchronized void setOffset(String key, long offsetMs) {
+        throw new UnsupportedOperationException();
     }
 
     synchronized void forget(String key) {
