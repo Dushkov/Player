@@ -61,6 +61,10 @@ final class BgSubsClient {
         return get(url);
     }
 
+    static String login(String server, String password, String device, OkHttpClient http) throws BgSubsException {
+        throw new UnsupportedOperationException();
+    }
+
     /** Aborts the request in progress, if any; the blocked call then fails with NETWORK. */
     void cancel() {
         Call call = currentCall;
@@ -293,7 +297,8 @@ final class BgSubsClient {
     }
 
     static final class BgSubsException extends Exception {
-        enum Kind { NO_TOKEN, BAD_SERVER, UNAUTHORIZED, NETWORK, SERVER, UNPROCESSABLE }
+        enum Kind { NO_TOKEN, BAD_SERVER, UNAUTHORIZED, NETWORK, SERVER, UNPROCESSABLE,
+            WRONG_PASSWORD, RATE_LIMITED, LOGIN_DISABLED }
 
         final Kind kind;
 

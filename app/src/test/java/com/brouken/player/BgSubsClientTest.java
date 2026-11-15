@@ -261,4 +261,59 @@ public class BgSubsClientTest {
         assertEquals("23.976 fps · 12\u00A0474 изтегляния · 2 файла · 14.11.2010", r.results.get(0).detailLine());
         assertEquals("", r.results.get(1).detailLine());
     }
+
+    private BgSubsClient.BgSubsException.Kind loginKind(int code, String body) throws Exception {
+        server.enqueue(response(code, body));
+        try {
+            BgSubsClient.login(base(), "kino", "Google TV", http);
+            fail("expected an error for " + code);
+            return null;
+        } catch (BgSubsClient.BgSubsException e) {
+            return e.kind;
+        }
+    }
+
+    @Test
+    public void loginSendsPasswordAndReturnsToken() throws Exception {
+        server.enqueue(response(200, "{\"token\":\"dev-token-123\"}"));
+        assertEquals("dev-token-123", BgSubsClient.login(base(), "kino-vecher-42", "Google TV", http));
+        RecordedRequest request = server.takeRequest();
+        assertEquals("POST", request.getMethod());
+        assertEquals("/login", request.getUrl().encodedPath());
+        org.json.JSONObject body = new org.json.JSONObject(request.getBody().utf8());
+        assertEquals("kino-vecher-42", body.getString("password"));
+        assertEquals("Google TV", body.getString("device"));
+        assertNull(request.getHeaders().get("X-Api-Key"));
+    }
+
+    @Test
+    public void loginErrorsMapToKinds() throws Exception {
+        assertEquals(BgSubsClient.BgSubsException.Kind.WRONG_PASSWORD, loginKind(401, "{\"detail\":\"wrong password\"}"));
+        assertEquals(BgSubsClient.BgSubsException.Kind.RATE_LIMITED, loginKind(429, "{\"detail\":\"too many\"}"));
+        assertEquals(BgSubsClient.BgSubsException.Kind.LOGIN_DISABLED, loginKind(404, "{\"detail\":\"not enabled\"}"));
+        assertEquals(BgSubsClient.BgSubsException.Kind.SERVER, loginKind(500, "oops"));
+    }
+
+    @Test
+    public void loginWithBlankPasswordIsWrongPasswordWithoutRequest() throws Exception {
+        try {
+            BgSubsClient.login(base(), "  ", "tv", http);
+            fail();
+        } catch (BgSubsClient.BgSubsException e) {
+            assertEquals(BgSubsClient.BgSubsException.Kind.WRONG_PASSWORD, e.kind);
+        }
+        assertEquals(0, server.getRequestCount());
+    }
+
+    @Test
+    public void loginToUnreachableServerIsNetwork() throws Exception {
+        String dead = base();
+        server.close();
+        try {
+            BgSubsClient.login(dead, "kino", "tv", http);
+            fail();
+        } catch (BgSubsClient.BgSubsException e) {
+            assertEquals(BgSubsClient.BgSubsException.Kind.NETWORK, e.kind);
+        }
+    }
 }
