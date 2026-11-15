@@ -23,15 +23,26 @@
     <string name="bgsubs_files_title" translatable="false">Избери файл</string>
     <string name="bgsubs_loaded" translatable="false">Заредени: %s</string>
     <string name="bgsubs_settings" translatable="false">Настройки</string>
-    <string name="bgsubs_error_no_token" translatable="false">Въведи токен в Настройки → BG субтитри.</string>
-    <string name="bgsubs_error_unauthorized" translatable="false">Грешен токен. Провери го в Настройки → BG субтитри.</string>
     <string name="bgsubs_error_bad_server" translatable="false">Невалиден адрес на сървъра. Провери го в Настройки → BG субтитри.</string>
     <string name="bgsubs_error_network" translatable="false">Сървърът не отговаря.</string>
     <string name="bgsubs_error_server" translatable="false">Грешка: %s</string>
     <string name="bgsubs_pref_header" translatable="false">BG субтитри</string>
     <string name="bgsubs_pref_server" translatable="false">Адрес на сървъра</string>
-    <string name="bgsubs_pref_token" translatable="false">Токен</string>
-    <string name="bgsubs_token_not_set" translatable="false">Не е зададен</string>
+    <string name="bgsubs_pref_token" translatable="false">Вход</string>
+    <string name="bgsubs_login_status_in" translatable="false">Влязъл. Натисни за изход.</string>
+    <string name="bgsubs_login_status_out" translatable="false">Не е влязъл. Паролата се иска при първото търсене.</string>
+    <string name="bgsubs_login_how" translatable="false">Натисни бутона BG по време на филм. Ще бъдеш попитан за паролата.</string>
+    <string name="bgsubs_logout_confirm" translatable="false">Изход от BG субтитри? Следващия път ще се иска паролата.</string>
+    <string name="bgsubs_logout" translatable="false">Изход</string>
+    <string name="bgsubs_login_title" translatable="false">Вход в BG субтитри</string>
+    <string name="bgsubs_login_hint" translatable="false">Парола</string>
+    <string name="bgsubs_login_button" translatable="false">Вход</string>
+    <string name="bgsubs_login_progress" translatable="false">Вход…</string>
+    <string name="bgsubs_login_ok" translatable="false">Влязъл</string>
+    <string name="bgsubs_login_wrong" translatable="false">Грешна парола. Опитай пак.</string>
+    <string name="bgsubs_login_blocked" translatable="false">Твърде много грешни опити. Опитай пак след 15 минути.</string>
+    <string name="bgsubs_login_disabled" translatable="false">Входът с парола не е включен на сървъра (LOGIN_PASSWORD в .env).</string>
+    <string name="bgsubs_login_expired" translatable="false">Достъпът е изтекъл или отнет. Въведи паролата отново.</string>
     <string name="bgsubs_sources_title" translatable="false">Източници на субтитри</string>
     <string name="bgsubs_sources_summary" translatable="false">subs.sab.bz · subsunacs.net · SubDL · OpenSubtitles · SubSource (търсене по английско заглавие)</string>
     <string name="bgsubs_update_title" translatable="false">Провери за обновление</string>

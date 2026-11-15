@@ -7,6 +7,7 @@ import android.content.res.ColorStateList;
 import android.graphics.Typeface;
 import android.graphics.drawable.ColorDrawable;
 import android.net.Uri;
+import android.os.Build;
 import android.text.InputType;
 import android.util.TypedValue;
 import android.view.Gravity;
@@ -455,12 +456,12 @@ final class BgSubsDialog {
                 T value = work.run(c);
                 post(gen, progress, () -> done.accept(value));
             } catch (BgSubsClient.BgSubsException e) {
-                post(gen, progress, () -> showError(e, afterError));
+                post(gen, progress, () -> showError(e, afterError, () -> run(messageRes, work, done, afterError)));
             } catch (RuntimeException e) {
                 // never let an unexpected error kill the player mid-film
                 BgSubsClient.BgSubsException wrapped = new BgSubsClient.BgSubsException(
                         BgSubsClient.BgSubsException.Kind.SERVER, String.valueOf(e.getMessage()));
-                post(gen, progress, () -> showError(wrapped, afterError));
+                post(gen, progress, () -> showError(wrapped, afterError, null));
             }
         });
     }
@@ -477,23 +478,21 @@ final class BgSubsDialog {
         });
     }
 
-    private void showError(BgSubsClient.BgSubsException e, Runnable afterError) {
+    /** retry repeats the failed request; used after logging in with the password. */
+    private void showError(BgSubsClient.BgSubsException e, Runnable afterError, Runnable retry) {
+        if (e.kind == BgSubsClient.BgSubsException.Kind.NO_TOKEN
+                || e.kind == BgSubsClient.BgSubsException.Kind.UNAUTHORIZED) {
+            boolean expired = e.kind == BgSubsClient.BgSubsException.Kind.UNAUTHORIZED;
+            if (expired) {
+                prefs().edit().remove(PREF_TOKEN).apply();  // revoked or password changed on the server
+            }
+            showLogin(expired ? activity.getString(R.string.bgsubs_login_expired) : null, retry);
+            return;
+        }
         AlertDialog.Builder builder = builder().setTitle(R.string.bgsubs_search_title);
         switch (e.kind) {
-            case NO_TOKEN:
-                builder.setMessage(R.string.bgsubs_error_no_token)
-                        .setPositiveButton(R.string.bgsubs_settings,
-                                (d, w) -> activity.startActivity(new Intent(activity, SettingsActivity.class)))
-                        .setNegativeButton(android.R.string.cancel, null);
-                break;
             case BAD_SERVER:
                 builder.setMessage(R.string.bgsubs_error_bad_server)
-                        .setPositiveButton(R.string.bgsubs_settings,
-                                (d, w) -> activity.startActivity(new Intent(activity, SettingsActivity.class)))
-                        .setNegativeButton(android.R.string.cancel, null);
-                break;
-            case UNAUTHORIZED:
-                builder.setMessage(R.string.bgsubs_error_unauthorized)
                         .setPositiveButton(R.string.bgsubs_settings,
                                 (d, w) -> activity.startActivity(new Intent(activity, SettingsActivity.class)))
                         .setNegativeButton(android.R.string.cancel, null);
@@ -510,12 +509,93 @@ final class BgSubsDialog {
     }
 
     private BgSubsClient newClient() {
-        SharedPreferences prefs = prefs();
-        String server = prefs.getString(PREF_SERVER, DEFAULT_SERVER);
-        if (server == null || server.trim().isEmpty()) {
-            server = DEFAULT_SERVER;
+        return new BgSubsClient(server(), prefs().getString(PREF_TOKEN, ""), http);
+    }
+
+    private String server() {
+        String server = prefs().getString(PREF_SERVER, DEFAULT_SERVER);
+        return server == null || server.trim().isEmpty() ? DEFAULT_SERVER : server;
+    }
+
+    /** Asks for the server's password once; the device token it returns is kept, the password is not. */
+    private void showLogin(String message, Runnable retry) {
+        LinearLayout layout = new LinearLayout(activity);
+        layout.setOrientation(LinearLayout.VERTICAL);
+        layout.setPadding(dp(20), dp(8), dp(20), 0);
+        if (message != null) {
+            TextView m = label(0);
+            m.setText(message);
+            layout.addView(m);
         }
-        return new BgSubsClient(server, prefs.getString(PREF_TOKEN, ""), http);
+        final EditText password = field(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_VISIBLE_PASSWORD, "");
+        password.setHint(R.string.bgsubs_login_hint);
+        password.setImeOptions(EditorInfo.IME_ACTION_DONE);
+        layout.addView(password);
+
+        final AlertDialog dialog = builder()
+                .setTitle(R.string.bgsubs_login_title)
+                .setView(layout)
+                .setPositiveButton(R.string.bgsubs_login_button, null)
+                .setNegativeButton(android.R.string.cancel, null)
+                .create();
+        final Runnable submit = () -> {
+            dialog.dismiss();
+            login(password.getText().toString(), retry);
+        };
+        password.setOnEditorActionListener((v, actionId, event) -> {
+            if (actionId == EditorInfo.IME_ACTION_DONE) {
+                submit.run();
+                return true;
+            }
+            return false;
+        });
+        dialog.setOnShowListener(d -> dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener(v -> submit.run()));
+        dialog.show();
+    }
+
+    private void login(String password, Runnable retry) {
+        final AlertDialog progress = builder().setMessage(R.string.bgsubs_login_progress).setCancelable(false).show();
+        final String device = (Build.MANUFACTURER + " " + Build.MODEL).trim();
+        final String server = server();
+        executor.execute(() -> {
+            String token = null;
+            BgSubsClient.BgSubsException error = null;
+            try {
+                token = BgSubsClient.login(server, password, device, http);
+            } catch (BgSubsClient.BgSubsException e) {
+                error = e;
+            } catch (RuntimeException e) {
+                error = new BgSubsClient.BgSubsException(BgSubsClient.BgSubsException.Kind.SERVER, String.valueOf(e.getMessage()));
+            }
+            final String result = token;
+            final BgSubsClient.BgSubsException failure = error;
+            activity.runOnUiThread(() -> {
+                if (activity.isFinishing() || activity.isDestroyed()) {
+                    return;
+                }
+                progress.dismiss();
+                if (result != null) {
+                    prefs().edit().putString(PREF_TOKEN, result).apply();
+                    toast(activity.getString(R.string.bgsubs_login_ok));
+                    if (retry != null) {
+                        retry.run();
+                    }
+                } else {
+                    showLogin(loginMessage(failure), retry);
+                }
+            });
+        });
+    }
+
+    private String loginMessage(BgSubsClient.BgSubsException e) {
+        switch (e.kind) {
+            case WRONG_PASSWORD: return activity.getString(R.string.bgsubs_login_wrong);
+            case RATE_LIMITED: return activity.getString(R.string.bgsubs_login_blocked);
+            case LOGIN_DISABLED: return activity.getString(R.string.bgsubs_login_disabled);
+            case NETWORK: return activity.getString(R.string.bgsubs_error_network);
+            case BAD_SERVER: return activity.getString(R.string.bgsubs_error_bad_server);
+            default: return activity.getString(R.string.bgsubs_error_server, e.getMessage());
+        }
     }
 
     /** Fields from what TiviMate sent ("Black Doves - S01E02 - …"), with a remembered name correction applied. */
