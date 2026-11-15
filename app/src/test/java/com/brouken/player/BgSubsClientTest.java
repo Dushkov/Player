@@ -316,4 +316,20 @@ public class BgSubsClientTest {
             assertEquals(BgSubsClient.BgSubsException.Kind.NETWORK, e.kind);
         }
     }
+
+    @Test
+    public void qualityFlagsAreParsedAndShown() throws Exception {
+        BgSubsClient.SearchResponse r = BgSubsClient.parseSearch("{\"results\":["
+                + "{\"id\":\"a\",\"source\":\"opensubtitles\",\"title\":\"X\",\"fps\":\"25\",\"machine_translated\":true,\"production\":null},"
+                + "{\"id\":\"b\",\"source\":\"subsource\",\"title\":\"X\",\"machine_translated\":false,\"production\":\"improved\"},"
+                + "{\"id\":\"c\",\"source\":\"subsource\",\"title\":\"X\",\"production\":\"retail\"},"
+                + "{\"id\":\"d\",\"source\":\"sabbz\",\"title\":\"X\"}"
+                + "],\"errors\":[]}");
+        assertTrue(r.results.get(0).machineTranslated);
+        assertEquals("⚠ машинен превод · 25 fps", r.results.get(0).detailLine());
+        assertEquals("подобрени", r.results.get(1).detailLine());
+        assertEquals("официални", r.results.get(2).detailLine());
+        assertFalse(r.results.get(3).machineTranslated);
+        assertEquals("", r.results.get(3).detailLine());
+    }
 }

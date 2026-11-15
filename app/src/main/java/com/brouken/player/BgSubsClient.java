@@ -285,6 +285,8 @@ final class BgSubsClient {
     static final class Result {
         String id, source, title, release, fps, date;
         Integer year, downloads, filesHint;
+        boolean machineTranslated;
+        String production;
 
         /** First row: the release name (without site wording such as "За рилийза"), or the title. */
         String primaryLine() {
