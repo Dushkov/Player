@@ -71,7 +71,7 @@ final class BgSubsLibrary {
             return null;
         }
         File file = new File(dir, entry.optString("file"));
-        return file.isFile() ? new Entry(key, entry.optString("name"), file, 0) : null;
+        return file.isFile() ? new Entry(key, entry.optString("name"), file, entry.optLong("offset", 0)) : null;
     }
 
     /** Marks an entry as just used, so the size limit drops others first. */
@@ -89,8 +89,19 @@ final class BgSubsLibrary {
         }
     }
 
+    /** Remembers the timing offset chosen for this film/episode; a new save starts again from 0. */
     synchronized void setOffset(String key, long offsetMs) {
-        throw new UnsupportedOperationException();
+        JSONObject index = readIndex();
+        JSONObject entry = index.optJSONObject(key);
+        if (entry == null) {
+            return;
+        }
+        try {
+            entry.put("offset", offsetMs);
+            writeIndex(index);
+        } catch (JSONException | IOException ignored) {
+            // only the offset is lost; the subtitle stays saved
+        }
     }
 
     synchronized void forget(String key) {
