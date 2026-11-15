@@ -13,8 +13,8 @@
     <string name="bgsubs_tap_title" translatable="false">Натисни OK, когато героят каже:</string>
     <string name="bgsubs_tap_none" translatable="false">Няма следващи реплики</string>
     <string name="bgsubs_tap_keys" translatable="false">▼ следваща реплика · ◀ ▶ ръчна настройка · Назад = отказ</string>
-    <string name="bgsubs_fine_late" translatable="false">◀ Избързай субтитрите</string>
-    <string name="bgsubs_fine_early" translatable="false">Забави субтитрите ▶</string>
+    <string name="bgsubs_fine_late" translatable="false">◀ Забави субтитрите</string>
+    <string name="bgsubs_fine_early" translatable="false">Избързай субтитрите ▶</string>
     <string name="bgsubs_fine_now" translatable="false">в момента: %s · OK = готово</string>
     <string name="bgsubs_sync_saved" translatable="false">Субтитрите ще идват %s</string>
     <string name="bgsubs_saved_loaded" translatable="false">Заредени запазени BG субтитри: %s</string>
