@@ -534,6 +534,7 @@ final class BgSubsDialog {
             case "subdl": return 0xFFFFCC80;          // orange
             case "opensubtitles": return 0xFFEF9A9A;  // red
             case "subsource": return 0xFFCE93D8;      // purple
+            case "subsland": return 0xFF80CBC4;       // teal
             default: return DETAIL_TEXT;
         }
     }

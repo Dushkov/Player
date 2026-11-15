@@ -274,6 +274,7 @@ final class BgSubsClient {
             case "subdl": return "SubDL";
             case "opensubtitles": return "OpenSubtitles";
             case "subsource": return "SubSource";
+            case "subsland": return "SubsLand";
             default: return source;
         }
     }
@@ -306,6 +307,8 @@ final class BgSubsClient {
                 parts.add("подобрени");
             } else if ("retail".equals(production)) {
                 parts.add("официални");
+            } else if ("verified".equals(production)) {
+                parts.add("проверени");
             }
             if (fps != null) parts.add(fps + " fps");
             if (downloads != null) parts.add(groupThousands(downloads) + (downloads == 1 ? " изтегляне" : " изтегляния"));

@@ -55,7 +55,7 @@
     <string name="bgsubs_login_disabled" translatable="false">Входът с парола не е включен на сървъра (LOGIN_PASSWORD в .env).</string>
     <string name="bgsubs_login_expired" translatable="false">Достъпът е изтекъл или отнет. Въведи паролата отново.</string>
     <string name="bgsubs_sources_title" translatable="false">Източници на субтитри</string>
-    <string name="bgsubs_sources_summary" translatable="false">subs.sab.bz · subsunacs.net · SubDL · OpenSubtitles · SubSource (търсене по английско заглавие)</string>
+    <string name="bgsubs_sources_summary" translatable="false">subs.sab.bz · subsunacs.net · SubsLand · SubDL · OpenSubtitles · SubSource (търсене по английско заглавие; SubsLand и по българско)</string>
     <string name="bgsubs_update_title" translatable="false">Провери за обновление</string>
     <string name="bgsubs_update_installed" translatable="false">Версия %s</string>
     <string name="bgsubs_update_checking" translatable="false">Проверка за нова версия…</string>
