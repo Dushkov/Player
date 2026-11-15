@@ -78,20 +78,35 @@ final class BgSubsCues {
         return visible == null ? Collections.<String>emptyList() : visible;
     }
 
+    /** The first line not yet due with the current offset (the one to wait for in tap sync), or -1. */
     int nextCue(long positionMs, long offsetMs) {
-        throw new UnsupportedOperationException();
+        int best = -1;
+        for (int k = 0; k < texts.length; k++) {
+            if (starts[k] + offsetMs > positionMs && (best < 0 || starts[k] < starts[best])) {
+                best = k;
+            }
+        }
+        return best;
     }
 
+    /** The line written right after line `index`, or -1. */
     int nextCueAfter(int index) {
-        throw new UnsupportedOperationException();
+        int best = -1;
+        for (int k = 0; k < texts.length; k++) {
+            if (starts[k] > starts[index] && (best < 0 || starts[k] < starts[best])) {
+                best = k;
+            }
+        }
+        return best;
     }
 
     String text(int index) {
-        throw new UnsupportedOperationException();
+        return texts[index];
     }
 
+    /** OK pressed at positionMs when line `index` was heard: the offset that makes the line show right then. */
     long offsetForTap(int index, long positionMs) {
-        throw new UnsupportedOperationException();
+        return positionMs - starts[index];
     }
 
     /** "1,2 s по-късно", "0,5 s по-рано", "без отместване": the offset in words, not as a sign. */
