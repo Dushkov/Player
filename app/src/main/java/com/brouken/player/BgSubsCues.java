@@ -78,6 +78,14 @@ final class BgSubsCues {
         return visible == null ? Collections.<String>emptyList() : visible;
     }
 
+    static String offsetWords(long offsetMs) {
+        throw new UnsupportedOperationException();
+    }
+
+    static String syncStatus(long offsetMs) {
+        throw new UnsupportedOperationException();
+    }
+
     /** "+1,2 s", "−0,5 s", "0,0 s" (Bulgarian decimal comma, real minus sign). */
     static String offsetLabel(long offsetMs) {
         String sign = offsetMs > 0 ? "+" : offsetMs < 0 ? "−" : "";

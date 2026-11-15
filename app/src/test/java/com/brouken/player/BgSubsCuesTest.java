@@ -55,10 +55,17 @@ public class BgSubsCuesTest {
     }
 
     @Test
-    public void offsetLabelUsesCommaAndSign() {
-        assertEquals("+1,2 s", BgSubsCues.offsetLabel(1200));
-        assertEquals("−0,5 s", BgSubsCues.offsetLabel(-500));
-        assertEquals("0,0 s", BgSubsCues.offsetLabel(0));
-        assertEquals("+12,0 s", BgSubsCues.offsetLabel(12000));
+    public void offsetWordsSayTheDirection() {
+        assertEquals("1,2 s по-късно", BgSubsCues.offsetWords(1200));
+        assertEquals("0,5 s по-рано", BgSubsCues.offsetWords(-500));
+        assertEquals("без отместване", BgSubsCues.offsetWords(0));
+        assertEquals("12,0 s по-късно", BgSubsCues.offsetWords(12000));
+    }
+
+    @Test
+    public void syncStatusIsAFullSentence() {
+        assertEquals("Субтитрите идват 1,2 s по-късно", BgSubsCues.syncStatus(1200));
+        assertEquals("Субтитрите идват 0,1 s по-рано", BgSubsCues.syncStatus(-100));
+        assertEquals("Субтитрите са без отместване", BgSubsCues.syncStatus(0));
     }
 }
