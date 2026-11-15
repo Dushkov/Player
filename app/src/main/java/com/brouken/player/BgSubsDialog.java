@@ -157,7 +157,7 @@ final class BgSubsDialog {
 
     /**
      * Sync in two steps while the film keeps playing: first OK when the shown line is heard (the offset is
-     * computed from that), then ◀ ▶ to fine-tune by what is seen ("text is late" / "text is early").
+     * computed from that), then ◀ Избързай / Забави ▶ to fine-tune.
      */
     private void startSync() {
         activity.playerView.hideController();
@@ -267,7 +267,7 @@ final class BgSubsDialog {
             if (ok && !down) {
                 stopSync();
             } else if (down && (code == KeyEvent.KEYCODE_DPAD_LEFT || code == KeyEvent.KEYCODE_DPAD_RIGHT)) {
-                // ◀ "text is late" shows it earlier; "text is early" ▶ shows it later. Holding repeats.
+                // ◀ "Избързай" shows them earlier, "Забави" ▶ later. Holding repeats.
                 long step = code == KeyEvent.KEYCODE_DPAD_LEFT ? -200 : 200;
                 overlay.setOffset(clampOffset(overlay.offsetMs() + step));
                 updateSyncBar();
