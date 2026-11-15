@@ -332,4 +332,12 @@ public class BgSubsClientTest {
         assertFalse(r.results.get(3).machineTranslated);
         assertEquals("", r.results.get(3).detailLine());
     }
+
+    @Test
+    public void subslandVerifiedLabelAndName() throws Exception {
+        BgSubsClient.Result r = BgSubsClient.parseSearch("{\"results\":[{\"id\":\"a\",\"source\":\"subsland\","
+                + "\"title\":\"Генезис\",\"production\":\"verified\",\"fps\":\"23.976\"}],\"errors\":[]}").results.get(0);
+        assertEquals("проверени · 23.976 fps", r.detailLine());
+        assertEquals("SubsLand", BgSubsClient.sourceName("subsland"));
+    }
 }
