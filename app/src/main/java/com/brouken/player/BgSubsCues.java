@@ -78,6 +78,22 @@ final class BgSubsCues {
         return visible == null ? Collections.<String>emptyList() : visible;
     }
 
+    int nextCue(long positionMs, long offsetMs) {
+        throw new UnsupportedOperationException();
+    }
+
+    int nextCueAfter(int index) {
+        throw new UnsupportedOperationException();
+    }
+
+    String text(int index) {
+        throw new UnsupportedOperationException();
+    }
+
+    long offsetForTap(int index, long positionMs) {
+        throw new UnsupportedOperationException();
+    }
+
     /** "1,2 s по-късно", "0,5 s по-рано", "без отместване": the offset in words, not as a sign. */
     static String offsetWords(long offsetMs) {
         if (offsetMs == 0) {

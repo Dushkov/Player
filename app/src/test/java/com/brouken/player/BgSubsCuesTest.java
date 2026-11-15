@@ -68,4 +68,29 @@ public class BgSubsCuesTest {
         assertEquals("Субтитрите идват 0,1 s по-рано", BgSubsCues.syncStatus(-100));
         assertEquals("Субтитрите са без отместване", BgSubsCues.syncStatus(0));
     }
+
+    @Test
+    public void nextCueIsTheFirstNotYetShownWithTheCurrentOffset() {
+        BgSubsCues cues = BgSubsCues.parse(SRT);  // cues start at 1000, 3000, 4000
+        assertEquals(0, cues.nextCue(500, 0));
+        assertEquals(1, cues.nextCue(1500, 0));
+        assertEquals(1, cues.nextCue(2500, 1000));   // with +1 s the first cue is due at 2000, already past
+        assertEquals(0, cues.nextCue(2500, 2000));   // with +2 s it is due at 3000, still ahead
+        assertEquals(-1, cues.nextCue(9000, 0));
+    }
+
+    @Test
+    public void nextCueAfterSkipsToTheFollowingOne() {
+        BgSubsCues cues = BgSubsCues.parse(SRT);
+        assertEquals(2, cues.nextCueAfter(1));
+        assertEquals(-1, cues.nextCueAfter(2));
+    }
+
+    @Test
+    public void tapGivesTheOffsetFromWhenTheLineWasHeard() {
+        BgSubsCues cues = BgSubsCues.parse(SRT);
+        assertEquals("Два\nреда", cues.text(1));
+        assertEquals(1500, cues.offsetForTap(1, 4500));   // line written for 3,0 s heard at 4,5 s
+        assertEquals(-800, cues.offsetForTap(1, 2200));
+    }
 }
