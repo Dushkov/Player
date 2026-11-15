@@ -144,6 +144,8 @@ final class BgSubsClient {
             r.year = integer(o, "year");
             r.downloads = integer(o, "downloads");
             r.filesHint = integer(o, "files_hint");
+            r.machineTranslated = o.optBoolean("machine_translated", false);
+            r.production = string(o, "production");
             response.results.add(r);
         }
         JSONArray errors = root.optJSONArray("errors");
@@ -298,6 +300,13 @@ final class BgSubsClient {
         /** fps · downloads · files · date, skipping what the source does not give. */
         String detailLine() {
             List<String> parts = new ArrayList<>();
+            if (machineTranslated) {
+                parts.add("⚠ машинен превод");
+            } else if ("improved".equals(production)) {
+                parts.add("подобрени");
+            } else if ("retail".equals(production)) {
+                parts.add("официални");
+            }
             if (fps != null) parts.add(fps + " fps");
             if (downloads != null) parts.add(groupThousands(downloads) + (downloads == 1 ? " изтегляне" : " изтегляния"));
             if (filesHint != null && filesHint > 1) parts.add(filesHint + " файла");

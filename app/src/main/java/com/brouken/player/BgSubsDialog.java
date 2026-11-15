@@ -451,6 +451,7 @@ final class BgSubsDialog {
     private static final int SELECTED_ROW = 0xFF1565C0;
     private static final int PRIMARY_TEXT = 0xFFFFFFFF;
     private static final int DETAIL_TEXT = 0xFFC0C0C0;
+    private static final int WARNING_TEXT = 0xFFFFCA28;  // amber: machine translation
 
     /** Two rows per result: release, then source (own colour) and details; the error line is not selectable. */
     private final class ResultsAdapter extends BaseAdapter {
@@ -503,7 +504,7 @@ final class BgSubsDialog {
             meta.addView(text(BgSubsClient.sourceName(r.source), 13, sourceColor(r.source), true));
             String details = r.detailLine();
             if (!details.isEmpty()) {
-                meta.addView(text("  ·  " + details, 13, DETAIL_TEXT, false));
+                meta.addView(text("  ·  " + details, 13, r.machineTranslated ? WARNING_TEXT : DETAIL_TEXT, false));
             }
             row.addView(meta);
             return row;
