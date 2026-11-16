@@ -63,6 +63,14 @@ final class BgSubsClient {
         return get(url);
     }
 
+    BgSubsInfo info(BgSubsQuery query) throws BgSubsException { return null; }
+
+    BgSubsInfo titleInfo(String kind, int tmdbId) throws BgSubsException { return null; }
+
+    BgSubsInfo.Bio person(int id) throws BgSubsException { return null; }
+
+    static byte[] fetchImage(String url, OkHttpClient http) { return null; }
+
     /** Trades the server's login password for a token for this device (POST /login). */
     static String login(String server, String password, String device, OkHttpClient http) throws BgSubsException {
         String pw = password == null ? "" : password.trim();
@@ -354,7 +362,7 @@ final class BgSubsClient {
 
     static final class BgSubsException extends Exception {
         enum Kind { NO_TOKEN, BAD_SERVER, UNAUTHORIZED, NETWORK, SERVER, UNPROCESSABLE,
-            WRONG_PASSWORD, RATE_LIMITED, LOGIN_DISABLED }
+            WRONG_PASSWORD, RATE_LIMITED, LOGIN_DISABLED, NOT_FOUND, UNAVAILABLE }
 
         final Kind kind;
 

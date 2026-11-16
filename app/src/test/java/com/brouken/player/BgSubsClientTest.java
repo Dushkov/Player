@@ -167,7 +167,8 @@ public class BgSubsClientTest {
         assertKind(422, "{\"detail\":\"the file is a Word/Office document, not a subtitle\"}",
                 BgSubsClient.BgSubsException.Kind.UNPROCESSABLE, "the file is a Word/Office document, not a subtitle");
         assertKind(502, "{\"detail\":\"source unreachable\"}", BgSubsClient.BgSubsException.Kind.SERVER, null);
-        assertKind(404, "{\"detail\":\"unknown or expired id abc\"}", BgSubsClient.BgSubsException.Kind.SERVER, null);
+        assertKind(404, "{\"detail\":\"unknown or expired id abc\"}", BgSubsClient.BgSubsException.Kind.NOT_FOUND, null);
+        assertKind(503, "{\"detail\":\"OMDB_API_KEY is not set\"}", BgSubsClient.BgSubsException.Kind.UNAVAILABLE, null);
     }
 
     @Test
@@ -339,5 +340,58 @@ public class BgSubsClientTest {
                 + "\"title\":\"Генезис\",\"production\":\"verified\",\"fps\":\"23.976\"}],\"errors\":[]}").results.get(0);
         assertEquals("проверени · 23.976 fps", r.detailLine());
         assertEquals("SubsLand", BgSubsClient.sourceName("subsland"));
+    }
+
+    // --- Info screen ---------------------------------------------------------------------------------
+
+    @Test
+    public void infoSendsQueryAndToken() throws Exception {
+        server.enqueue(response(200, BgSubsInfoTest.MOVIE_JSON));
+        BgSubsClient c = new BgSubsClient(base(), "tok", http);
+        BgSubsInfo info = c.info(new BgSubsQuery("Black Doves", 2024, 1, 2));
+        RecordedRequest req = server.takeRequest();
+        assertEquals("/info", req.getUrl().encodedPath());
+        assertEquals("Black Doves", req.getUrl().queryParameter("q"));
+        assertEquals("2024", req.getUrl().queryParameter("year"));
+        assertEquals("1", req.getUrl().queryParameter("season"));
+        assertEquals("2", req.getUrl().queryParameter("episode"));
+        assertEquals("tok", req.getHeaders().get("X-Api-Key"));
+        assertEquals("Генезис", info.heading());
+    }
+
+    @Test
+    public void titleInfoAndPersonPaths() throws Exception {
+        server.enqueue(response(200, BgSubsInfoTest.MOVIE_JSON));
+        server.enqueue(response(200, BgSubsInfoTest.PERSON_JSON));
+        BgSubsClient c = new BgSubsClient(base(), "tok", http);
+        c.titleInfo("tv", 200);
+        assertEquals("/info/title/tv/200", server.takeRequest().getUrl().encodedPath());
+        BgSubsInfo.Bio p = c.person(6193);
+        assertEquals("/info/person/6193", server.takeRequest().getUrl().encodedPath());
+        assertEquals("Leonardo DiCaprio", p.name);
+    }
+
+    @Test
+    public void infoNotFoundKind() throws Exception {
+        server.enqueue(response(404, "{\"detail\":\"no information found\"}"));
+        try {
+            new BgSubsClient(base(), "tok", http).info(new BgSubsQuery("zzz", null, null, null));
+            fail();
+        } catch (BgSubsClient.BgSubsException e) {
+            assertEquals(BgSubsClient.BgSubsException.Kind.NOT_FOUND, e.kind);
+        }
+    }
+
+    @Test
+    public void imagesAreFetchedWithoutOurToken() throws Exception {
+        byte[] png = {(byte) 0x89, 'P', 'N', 'G'};
+        server.enqueue(new MockResponse.Builder().code(200).body(new okio.Buffer().write(png)).build());
+        byte[] got = BgSubsClient.fetchImage(server.url("/t/p/w185/l.jpg").toString(), http);
+        assertArrayEquals(png, got);
+        assertNull(server.takeRequest().getHeaders().get("X-Api-Key"));
+        server.enqueue(response(404, ""));
+        assertNull(BgSubsClient.fetchImage(server.url("/missing.jpg").toString(), http));
+        assertNull(BgSubsClient.fetchImage("ftp://example.com/x.jpg", http));
+        assertNull(BgSubsClient.fetchImage(null, http));
     }
 }
