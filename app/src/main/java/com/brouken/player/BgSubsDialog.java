@@ -78,11 +78,47 @@ final class BgSubsDialog {
     private LinearLayout syncBar;    // non-null while the sync bar is open
     private boolean syncFine;        // false: "press OK when you hear …" step; true: ◀ ▶ fine tuning
     private int tapCue = -1;         // the line waited for in the tap step
+    private BgSubsInfoScreen infoScreen;  // set at the end of the constructor
 
     BgSubsDialog(PlayerActivity activity) {
         this.activity = activity;
         this.library = new BgSubsLibrary(new File(activity.getFilesDir(), "bgsubs-library"), 300);
         this.overlay = new BgSubsOverlay(activity);
+        this.infoScreen = new BgSubsInfoScreen(activity, new BgSubsInfoScreen.Opener() {
+            @Override
+            public void openTitle(String kind, int tmdbId) {
+                run(R.string.bgsubs_info_loading, c -> c.titleInfo(kind, tmdbId), infoScreen::show, () -> { });
+            }
+
+            @Override
+            public void openPerson(int id) {
+                run(R.string.bgsubs_info_loading, c -> c.person(id), infoScreen::showPerson, () -> { });
+            }
+        }, http);
+    }
+
+    /** ℹ button: rating, awards, plot, actors and similar titles for what is playing. */
+    void showInfo() {
+        final BgSubsQuery q = prefill();
+        if (q.title.isEmpty()) {
+            toast(activity.getString(R.string.bgsubs_info_no_title));
+            return;
+        }
+        run(R.string.bgsubs_info_loading, c -> {
+            try {
+                return c.info(q);
+            } catch (BgSubsClient.BgSubsException e) {
+                if (e.kind == BgSubsClient.BgSubsException.Kind.NOT_FOUND) {
+                    throw new BgSubsClient.BgSubsException(e.kind,
+                            activity.getString(R.string.bgsubs_info_not_found, describe(q)), true);
+                }
+                if (e.kind == BgSubsClient.BgSubsException.Kind.UNAVAILABLE) {
+                    throw new BgSubsClient.BgSubsException(e.kind,
+                            activity.getString(R.string.bgsubs_info_unavailable), true);
+                }
+                throw e;
+            }
+        }, infoScreen::show, () -> { });
     }
 
     /**
@@ -292,6 +328,7 @@ final class BgSubsDialog {
         overlay.clear();
         loadedKey = null;
         turnedOff = false;
+        infoScreen.closeAll();
     }
 
     private void showSearch(BgSubsQuery query) {
@@ -661,7 +698,8 @@ final class BgSubsDialog {
                         .setPositiveButton(android.R.string.ok, (d, w) -> afterError.run());
                 break;
             default:
-                builder.setMessage(activity.getString(R.string.bgsubs_error_server, e.getMessage()))
+                builder.setMessage(e.forViewer ? e.getMessage()
+                                : activity.getString(R.string.bgsubs_error_server, e.getMessage()))
                         .setPositiveButton(android.R.string.ok, (d, w) -> afterError.run());
         }
         builder.show();

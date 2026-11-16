@@ -349,7 +349,7 @@ public class BgSubsClientTest {
         server.enqueue(response(200, BgSubsInfoTest.MOVIE_JSON));
         BgSubsClient c = new BgSubsClient(base(), "tok", http);
         BgSubsInfo info = c.info(new BgSubsQuery("Black Doves", 2024, 1, 2));
-        RecordedRequest req = server.takeRequest();
+        RecordedRequest req = server.takeRequest(5, java.util.concurrent.TimeUnit.SECONDS);
         assertEquals("/info", req.getUrl().encodedPath());
         assertEquals("Black Doves", req.getUrl().queryParameter("q"));
         assertEquals("2024", req.getUrl().queryParameter("year"));

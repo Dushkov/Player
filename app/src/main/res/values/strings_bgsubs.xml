@@ -66,4 +66,18 @@
     <string name="bgsubs_update_allow" translatable="false">Разреши на Just Player BG да инсталира приложения, после натисни „Провери за обновление“ отново.</string>
     <string name="bgsubs_update_allow_manual" translatable="false">Настройки → Приложения → Специален достъп → Инсталиране на неизвестни приложения → Just Player BG</string>
     <string name="bgsubs_update_failed" translatable="false">Обновяването не успя: %s</string>
+    <string name="bgsubs_info_button" translatable="false">Информация за филма</string>
+    <string name="bgsubs_info_loading" translatable="false">Зареждане на информация…</string>
+    <string name="bgsubs_info_no_title" translatable="false">Няма заглавие, по което да се търси информация</string>
+    <string name="bgsubs_info_not_found" translatable="false">Няма информация за „%s“. Ако името е грешно, поправи го в търсенето на BG субтитри.</string>
+    <string name="bgsubs_info_unavailable" translatable="false">Информацията не е включена на сървъра (OMDB_API_KEY и TMDB_API_KEY в .env).</string>
+    <string name="bgsubs_info_episode" translatable="false">Епизод</string>
+    <string name="bgsubs_info_plot" translatable="false">Сюжет</string>
+    <string name="bgsubs_info_plot_en" translatable="false">Сюжет (на английски)</string>
+    <string name="bgsubs_info_cast" translatable="false">Актьори</string>
+    <string name="bgsubs_info_guests" translatable="false">Гост-участие</string>
+    <string name="bgsubs_info_similar" translatable="false">Подобни</string>
+    <string name="bgsubs_info_bio" translatable="false">Биография</string>
+    <string name="bgsubs_info_bio_en" translatable="false">Биография (на английски)</string>
+    <string name="bgsubs_info_no_bio" translatable="false">Няма биография.</string>
 </resources>

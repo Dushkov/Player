@@ -159,6 +159,7 @@ public class PlayerActivity extends Activity {
     private TextView titleView;
     private ImageButton buttonOpen;
     private ImageButton buttonBgSubs;
+    private ImageButton buttonBgInfo;
     private BgSubsDialog bgSubsDialog;
     private ImageButton buttonPiP;
     private ImageButton buttonAspectRatio;
@@ -400,6 +401,11 @@ public class PlayerActivity extends Activity {
         buttonBgSubs.setId(View.generateViewId());
         buttonBgSubs.setContentDescription(getString(R.string.bgsubs_button));
         buttonBgSubs.setOnClickListener(view -> bgSubsDialog.show());
+        buttonBgInfo = new ImageButton(this, null, 0, R.style.ExoStyledControls_Button_Bottom);
+        buttonBgInfo.setImageResource(R.drawable.ic_bgsubs_info_24dp);
+        buttonBgInfo.setId(View.generateViewId());
+        buttonBgInfo.setContentDescription(getString(R.string.bgsubs_info_button));
+        buttonBgInfo.setOnClickListener(view -> bgSubsDialog.showInfo());
 
         if (Utils.isPiPSupported(this)) {
             // TODO: Android 12 improvements:
@@ -629,6 +635,7 @@ public class PlayerActivity extends Activity {
         controls.addView(buttonOpen);
         controls.addView(exoSubtitle);
         controls.addView(buttonBgSubs);
+        controls.addView(buttonBgInfo);
         controls.addView(buttonAspectRatio);
         if (Utils.isPiPSupported(this) && buttonPiP != null) {
             controls.addView(buttonPiP);

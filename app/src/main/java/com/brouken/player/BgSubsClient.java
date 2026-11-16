@@ -63,13 +63,61 @@ final class BgSubsClient {
         return get(url);
     }
 
-    BgSubsInfo info(BgSubsQuery query) throws BgSubsException { return null; }
+    /** Info screen for what is playing: rating, awards, plot, cast, recommendations. */
+    BgSubsInfo info(BgSubsQuery query) throws BgSubsException {
+        HttpUrl.Builder b = base().newBuilder().addPathSegment("info").addQueryParameter("q", query.title);
+        if (query.year != null) b.addQueryParameter("year", String.valueOf(query.year));
+        if (query.season != null) b.addQueryParameter("season", String.valueOf(query.season));
+        if (query.episode != null) b.addQueryParameter("episode", String.valueOf(query.episode));
+        return parseInfo(get(b.build()));
+    }
 
-    BgSubsInfo titleInfo(String kind, int tmdbId) throws BgSubsException { return null; }
+    /** Info screen for a recommended title ("movie" or "tv"). */
+    BgSubsInfo titleInfo(String kind, int tmdbId) throws BgSubsException {
+        HttpUrl url = base().newBuilder().addPathSegment("info").addPathSegment("title")
+                .addPathSegment(kind).addPathSegment(String.valueOf(tmdbId)).build();
+        return parseInfo(get(url));
+    }
 
-    BgSubsInfo.Bio person(int id) throws BgSubsException { return null; }
+    BgSubsInfo.Bio person(int id) throws BgSubsException {
+        HttpUrl url = base().newBuilder().addPathSegment("info").addPathSegment("person")
+                .addPathSegment(String.valueOf(id)).build();
+        try {
+            return BgSubsInfo.Bio.parse(new String(get(url), "UTF-8"));
+        } catch (JSONException | IOException e) {
+            throw new BgSubsException(BgSubsException.Kind.SERVER, "invalid server response");
+        }
+    }
 
-    static byte[] fetchImage(String url, OkHttpClient http) { return null; }
+    /**
+     * A poster or actor photo (from TMDB/IMDb image hosts). Sent without our X-Api-Key, which must never leave
+     * our server. Null on any failure: a missing picture is not worth an error message.
+     */
+    static byte[] fetchImage(String url, OkHttpClient http) {
+        HttpUrl parsed = url == null ? null : HttpUrl.parse(url);
+        if (parsed == null) {
+            return null;
+        }
+        OkHttpClient client = http.newBuilder().callTimeout(20, TimeUnit.SECONDS).build();
+        try (Response response = client.newCall(new Request.Builder().url(parsed).build()).execute()) {
+            ResponseBody body = response.body();
+            if (response.code() != 200 || body.contentLength() > MAX_SUBTITLE_BYTES) {
+                return null;
+            }
+            byte[] bytes = body.bytes();
+            return bytes.length == 0 || bytes.length > MAX_SUBTITLE_BYTES ? null : bytes;
+        } catch (IOException | RuntimeException e) {
+            return null;
+        }
+    }
+
+    private static BgSubsInfo parseInfo(byte[] body) throws BgSubsException {
+        try {
+            return BgSubsInfo.parse(new String(body, "UTF-8"));
+        } catch (JSONException | IOException e) {
+            throw new BgSubsException(BgSubsException.Kind.SERVER, "invalid server response");
+        }
+    }
 
     /** Trades the server's login password for a token for this device (POST /login). */
     static String login(String server, String password, String device, OkHttpClient http) throws BgSubsException {
@@ -225,6 +273,8 @@ final class BgSubsClient {
             String detail = detail(body.string(), "HTTP " + code);
             if (code == 401) throw new BgSubsException(BgSubsException.Kind.UNAUTHORIZED, detail);
             if (code == 422) throw new BgSubsException(BgSubsException.Kind.UNPROCESSABLE, detail);
+            if (code == 404) throw new BgSubsException(BgSubsException.Kind.NOT_FOUND, detail);
+            if (code == 503) throw new BgSubsException(BgSubsException.Kind.UNAVAILABLE, detail);
             throw new BgSubsException(BgSubsException.Kind.SERVER, detail);
         } catch (IOException e) {
             throw new BgSubsException(BgSubsException.Kind.NETWORK, e.getMessage() == null ? "network error" : e.getMessage());
@@ -365,10 +415,16 @@ final class BgSubsClient {
             WRONG_PASSWORD, RATE_LIMITED, LOGIN_DISABLED, NOT_FOUND, UNAVAILABLE }
 
         final Kind kind;
+        final boolean forViewer;  // the message is already Bulgarian text for the screen
 
         BgSubsException(Kind kind, String message) {
+            this(kind, message, false);
+        }
+
+        BgSubsException(Kind kind, String message, boolean forViewer) {
             super(message);
             this.kind = kind;
+            this.forViewer = forViewer;
         }
     }
 }
